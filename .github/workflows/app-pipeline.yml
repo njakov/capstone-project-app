@@ -1,0 +1,48 @@
+name: Application Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+env:
+  PROJECT_ID: "teak-advice-475415-i2"
+  REGION: "europe-west1"
+  REPO_NAME: "petclinic-repo-dev"
+  IMAGE_NAME: "petclinic"
+
+jobs:
+  build-and-deploy:
+    name: Build & Deploy
+    runs-on: self-hosted # Uses your private runner
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      # 1. Run Unit Tests
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+      - name: Run Tests
+        run: ./mvnw test
+
+      # 2. Build & Push Docker Image
+      - name: Build and Push Image
+        run: |
+          # Use the commit hash as the tag for uniqueness
+          IMAGE_URI="$REGION-docker.pkg.dev/$PROJECT_ID/$REPO_NAME/$IMAGE_NAME:${{ github.sha }}"
+          
+          docker build -t $IMAGE_URI .
+          docker push $IMAGE_URI
+
+      # 3. Deploy with Helm
+      - name: Deploy to GKE
+        run: |
+          IMAGE_URI="$REGION-docker.pkg.dev/$PROJECT_ID/$REPO_NAME/$IMAGE_NAME"
+          
+          helm upgrade --install petclinic ./chart/petclinic \
+            --set image.repository=$IMAGE_URI \
+            --set image.tag=${{ github.sha }} \
+            --wait
