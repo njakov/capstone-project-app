@@ -10,20 +10,25 @@ env:
   REGION: "europe-west1"
   REPO_NAME: "petclinic-repo-dev"
   IMAGE_NAME: "petclinic"
+  # --- CRITICAL FIX: Force the pipeline to use your installed Java 25 ---
+  JAVA_HOME: "/usr/lib/jvm/java-25-openjdk-amd64"
 
 jobs:
   build-and-deploy:
     name: Build & Deploy
-    runs-on: self-hosted # Uses your private runner with Java 25
+    runs-on: self-hosted # Uses your private runner
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
 
-      # REMOVED: "Set up JDK" step. 
-      # Reason: We use the pre-installed OpenJDK 25 on the runner.
+      # Debug Step: Verify it uses Java 25
+      - name: Check Java Version
+        run: |
+          echo "JAVA_HOME is set to: $JAVA_HOME"
+          $JAVA_HOME/bin/java -version
 
       - name: Run Tests
-        # This will automatically use the JAVA_HOME you configured in .env
+        # Maven Wrapper will now respect the JAVA_HOME env var above
         run: ./mvnw test
 
       - name: Build and Push Image
@@ -39,7 +44,7 @@ jobs:
           # 1. Authenticate to GKE
           gcloud container clusters get-credentials petclinic-gke-dev --region europe-west1 --project teak-advice-475415-i2
           
-          # 2. Deploy (Configuration Management)
+          # 2. Deploy
           helm upgrade --install petclinic ./chart/petclinic \
             --set image.repository="$REGION-docker.pkg.dev/$PROJECT_ID/$REPO_NAME/$IMAGE_NAME" \
             --set image.tag=${{ github.sha }} \
