@@ -38,11 +38,12 @@ jobs:
           docker push $IMAGE_URI
 
       # 3. Deploy with Helm
-      - name: Deploy to GKE
+      - name: Deploy with Helm
         run: |
-          IMAGE_URI="$REGION-docker.pkg.dev/$PROJECT_ID/$REPO_NAME/$IMAGE_NAME"
+          # 1. Authenticate to GKE
+          gcloud container clusters get-credentials petclinic-gke-dev --region europe-west1 --project teak-advice-475415-i2
           
+          # 2. Deploy (This is the Configuration Management part!)
           helm upgrade --install petclinic ./chart/petclinic \
-            --set image.repository=$IMAGE_URI \
             --set image.tag=${{ github.sha }} \
             --wait
