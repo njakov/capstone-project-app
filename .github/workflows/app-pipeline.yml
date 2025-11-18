@@ -40,13 +40,7 @@ jobs:
         run: |
           # This registers the gcloud credential helper for your specific registry region
           gcloud auth configure-docker europe-west1-docker.pkg.dev --quiet
-
-      - name: Build and Push Image
-        run: |
-          IMAGE_URI="$REGION-docker.pkg.dev/$PROJECT_ID/$REPO_NAME/$IMAGE_NAME:${{ github.sha }}"
-          docker build -t $IMAGE_URI .
-          docker push $IMAGE_URI
-
+          
       - name: Build and Push Image
         run: |
           IMAGE_URI="$REGION-docker.pkg.dev/$PROJECT_ID/$REPO_NAME/$IMAGE_NAME:${{ github.sha }}"
