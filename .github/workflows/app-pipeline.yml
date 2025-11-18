@@ -10,41 +10,42 @@ env:
   REGION: "europe-west1"
   REPO_NAME: "petclinic-repo-dev"
   IMAGE_NAME: "petclinic"
-  # --- CRITICAL FIX: Force the pipeline to use your installed Java 25 ---
-  JAVA_HOME: "/usr/lib/jvm/java-25-openjdk-amd64"
 
 jobs:
   build-and-deploy:
     name: Build & Deploy
-    runs-on: self-hosted # Uses your private runner
+    runs-on: self-hosted
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
 
-      # Debug Step: Verify it uses Java 25
-      - name: Check Java Version
-        run: |
-          echo "JAVA_HOME is set to: $JAVA_HOME"
-          $JAVA_HOME/bin/java -version
-
       - name: Run Tests
-        # Maven Wrapper will now respect the JAVA_HOME env var above
         run: ./mvnw test
+
+      - name: Build Package
+        run: ./mvnw clean package -DskipTests
+
+      - name: Prepare Docker Files
+        run: |
+          # 1. Move and rename the App JAR
+          mv target/*.jar spring-petclinic.jar
+          
+          # 2. Download the Prometheus JMX Agent
+          curl -L https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/0.20.0/jmx_prometheus_javaagent-0.20.0.jar -o jmx.jar
+          
+          # 3. Verify all files exist before building
+          ls -l spring-petclinic.jar jmx.jar config.yaml
 
       - name: Build and Push Image
         run: |
-          # Use the commit hash as the tag for uniqueness
           IMAGE_URI="$REGION-docker.pkg.dev/$PROJECT_ID/$REPO_NAME/$IMAGE_NAME:${{ github.sha }}"
-          
           docker build -t $IMAGE_URI .
           docker push $IMAGE_URI
 
       - name: Deploy with Helm
         run: |
-          # 1. Authenticate to GKE
           gcloud container clusters get-credentials petclinic-gke-dev --region europe-west1 --project teak-advice-475415-i2
           
-          # 2. Deploy
           helm upgrade --install petclinic ./chart/petclinic \
             --set image.repository="$REGION-docker.pkg.dev/$PROJECT_ID/$REPO_NAME/$IMAGE_NAME" \
             --set image.tag=${{ github.sha }} \

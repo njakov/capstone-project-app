@@ -1,19 +1,37 @@
-# Use a multi-stage build to keep the image small
-# Stage 1: Build the JAR
-FROM maven:3.9.6-eclipse-temurin-17 AS build
-WORKDIR /app
-COPY . .
-# Skip tests here because they require a DB, and we run them in the pipeline instead
-RUN mvn clean package -DskipTests
+# ---------------------------------------------------------------------------
+# Base Image: OpenJDK 25 EA (Slim)
+# ---------------------------------------------------------------------------
+FROM openjdk:25-ea-21-jdk-slim
 
-# Stage 2: Run the App
-FROM eclipse-temurin:17-jdk-jammy
-WORKDIR /app
-COPY --from=build /app/target/*.jar app.jar
+WORKDIR /opt/spring-petclinic
 
-# Create a non-root user for security (Best Practice)
+# ---------------------------------------------------------------------------
+# Security: Create a non-root user
+# ---------------------------------------------------------------------------
 RUN groupadd -r petclinic && useradd -r -g petclinic petclinic
+
+# ---------------------------------------------------------------------------
+# Installation
+# We copy the 3 required files (App, Agent, Config) from the build context.
+# ---------------------------------------------------------------------------
+COPY spring-petclinic.jar spring-petclinic.jar
+COPY jmx.jar jmx.jar
+COPY config.yaml config.yaml
+
+# Grant ownership to the non-root user
+RUN chown -R petclinic:petclinic /opt/spring-petclinic
+
+# ---------------------------------------------------------------------------
+# Execution
+# ---------------------------------------------------------------------------
 USER petclinic
 
-EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "/app/app.jar"]
+# Expose App (8080) and Metrics (9093)
+EXPOSE 8080 9093
+
+# Run with the Prometheus Java Agent attached
+ENTRYPOINT [ "java", \
+  "-javaagent:/opt/spring-petclinic/jmx.jar=9093:/opt/spring-petclinic/config.yaml", \
+  "-jar", \
+  "spring-petclinic.jar" \
+]
