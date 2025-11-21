@@ -3,7 +3,7 @@ kind: Ingress
 metadata:
   name: {{ .Chart.Name }}
 spec:
-  ingressClassName: nginx
+  ingressClassName: {{ .Values.ingress.className }}
   rules:
     - host: {{ .Values.ingress.host }}
       http:
@@ -14,4 +14,4 @@ spec:
               service:
                 name: {{ .Chart.Name }}
                 port:
-                  number: 80
+                  number: {{ .Values.service.port }}
