@@ -19,8 +19,7 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - containerPort: 8080
-          
-          # 1. Mount the volume (Files appear at /mnt/secrets/)
+          # 1. Mount the volume
           volumeMounts:
             - name: secrets-store-inline
               mountPath: "/mnt/secrets"
@@ -30,13 +29,9 @@ spec:
             # 2. Activate MySQL Profile
             - name: SPRING_PROFILES_ACTIVE
               value: "mysql"
-            
-            # 3. Magic: Tell Spring to read all files in /mnt/secrets/ as properties
+            # 3. Tell Spring to read all files in /mnt/secrets/ as properties
             - name: SPRING_CONFIG_IMPORT
               value: "configtree:/mnt/secrets/"
-
-            # REMOVED: All manual SPRING_DATASOURCE_... definitions are deleted.
-            # Spring will automatically find 'spring.datasource.password' in the folder.
 
         - name: cloud-sql-proxy
           image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.14.2

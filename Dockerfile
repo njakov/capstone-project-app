@@ -12,7 +12,6 @@ RUN groupadd -r petclinic && useradd -r -g petclinic petclinic
 
 # ---------------------------------------------------------------------------
 # Installation
-# We copy the 3 required files (App, Agent, Config) from the build context.
 # ---------------------------------------------------------------------------
 COPY spring-petclinic.jar spring-petclinic.jar
 COPY jmx.jar jmx.jar
