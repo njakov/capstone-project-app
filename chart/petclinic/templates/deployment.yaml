@@ -37,3 +37,15 @@ spec:
                 secretKeyRef:
                   name: db-credentials
                   key: url
+        - name: cloud-sql-proxy
+          image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.14.2
+          args:
+            # The proxy will listen on 127.0.0.1:3306
+            - "--private-ip" # Keep this since your DB is private-only
+            - "{{ .Values.cloudSql.instanceConnectionName }}"
+          securityContext:
+            runAsNonRoot: true
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
