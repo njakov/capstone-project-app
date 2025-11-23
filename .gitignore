@@ -47,4 +47,4 @@ _site/
 *.css
 !petclinic.css
 
-.yamlllint
+.yamllint
