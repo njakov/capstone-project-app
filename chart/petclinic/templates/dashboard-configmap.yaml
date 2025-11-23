@@ -3,7 +3,7 @@ kind: ConfigMap
 metadata:
   name: {{ .Chart.Name }}-dashboard
   labels:
-    grafana_dashboard: "1" # This label tells Grafana to import this ConfigMap
+    grafana_dashboard: "1"
 spec:
   data:
     petclinic-dashboard.json: |
@@ -19,14 +19,20 @@ spec:
             "title": "JVM Memory Usage",
             "type": "timeseries",
             "targets": [
-              { "expr": "jvm_memory_used_bytes{application=\"petclinic\"}", "legendFormat": "{{area}}" }
+              { 
+                "expr": "jvm_memory_used_bytes{application=\"petclinic\"}", 
+                "legendFormat": "{{ "{{" }}area}}"  
+              }
             ]
           },
           {
              "title": "HTTP Request Latency",
              "type": "timeseries",
              "targets": [
-                { "expr": "rate(http_server_requests_seconds_sum{uri!=\"/actuator/prometheus\"}[1m]) / rate(http_server_requests_seconds_count{uri!=\"/actuator/prometheus\"}[1m])", "legendFormat": "{{uri}}" }
+                { 
+                  "expr": "rate(http_server_requests_seconds_sum{uri!=\"/actuator/prometheus\"}[1m]) / rate(http_server_requests_seconds_count{uri!=\"/actuator/prometheus\"}[1m])", 
+                  "legendFormat": "{{ "{{" }}uri}}" 
+                }
              ]
           }
         ],
