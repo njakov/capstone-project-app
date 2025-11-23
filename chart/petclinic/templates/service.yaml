@@ -8,5 +8,6 @@ spec:
     - port: {{ .Values.service.port }}
       targetPort: 8080
       protocol: TCP
+      name: http-web
   selector:
     app: {{ .Chart.Name }}

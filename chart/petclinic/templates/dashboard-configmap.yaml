@@ -1,0 +1,41 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Chart.Name }}-dashboard
+  labels:
+    grafana_dashboard: "1" # This label tells Grafana to import this ConfigMap
+spec:
+  data:
+    petclinic-dashboard.json: |
+      {
+        "annotations": { "list": [] },
+        "editable": true,
+        "gnetId": null,
+        "graphTooltip": 0,
+        "id": null,
+        "links": [],
+        "panels": [
+          {
+            "title": "JVM Memory Usage",
+            "type": "timeseries",
+            "targets": [
+              { "expr": "jvm_memory_used_bytes{application=\"petclinic\"}", "legendFormat": "{{area}}" }
+            ]
+          },
+          {
+             "title": "HTTP Request Latency",
+             "type": "timeseries",
+             "targets": [
+                { "expr": "rate(http_server_requests_seconds_sum{uri!=\"/actuator/prometheus\"}[1m]) / rate(http_server_requests_seconds_count{uri!=\"/actuator/prometheus\"}[1m])", "legendFormat": "{{uri}}" }
+             ]
+          }
+        ],
+        "schemaVersion": 16,
+        "style": "dark",
+        "tags": ["petclinic"],
+        "templating": { "list": [] },
+        "time": { "from": "now-6h", "to": "now" },
+        "title": "Petclinic Metrics",
+        "uid": "petclinic-app-v1",
+        "version": 1
+      }
