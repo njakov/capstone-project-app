@@ -2,7 +2,7 @@ name: Application Pipeline
 
 on:
   push:
-    branches: [ "add-auth-proxy" ]
+    branches: [ "main" ]
   workflow_dispatch:
 
 env:
