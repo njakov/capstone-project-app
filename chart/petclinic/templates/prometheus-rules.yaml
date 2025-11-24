@@ -1,10 +1,10 @@
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
-  name: petclinic-alerts
+  name: {{ .Chart.Name }}-alerts
   labels:
-    # IMPORTANT: Ensure this matches your Prometheus Helm release name
-    release: prometheus-community 
+    release: prometheus-community
+    app: {{ .Chart.Name }}
 spec:
   groups:
     - name: application.rules
@@ -16,7 +16,7 @@ spec:
           labels:
             severity: critical
           annotations:
-            # FIXED: Escaped {{ to {{ "{{" }} so Helm ignores it
+            # We use {{ "{{" }} to tell Helm: "Print a real '{' here, don't interpret it"
             summary: "Petclinic instance {{ "{{" }} $labels.instance }} is down."
             description: "Prometheus has not been able to scrape the metrics endpoint for Petclinic for more than 1 minute."
 
@@ -27,7 +27,6 @@ spec:
           labels:
             severity: warning
           annotations:
-            # FIXED: Escaped {{ to {{ "{{" }}
             summary: "Petclinic CPU usage is high on {{ "{{" }} $labels.instance }}."
             description: "Average CPU usage for instance {{ "{{" }} $labels.instance }} is above 80% for 5 minutes. Current usage: {{ "{{" }} $value }}"
 
@@ -43,6 +42,5 @@ spec:
           labels:
             severity: critical
           annotations:
-            # FIXED: Escaped {{ to {{ "{{" }}
             summary: "Petclinic Heap Memory is nearing exhaustion on {{ "{{" }} $labels.instance }}."
             description: "Heap memory usage on instance {{ "{{" }} $labels.instance }} is above 90%. Current usage: {{ "{{" }} $value }}"
