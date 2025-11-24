@@ -3,7 +3,8 @@ kind: PrometheusRule
 metadata:
   name: petclinic-alerts
   labels:
-    release: prometheus-community # Ensure this matches your Prometheus Helm release name
+    # IMPORTANT: Ensure this matches your Prometheus Helm release name
+    release: prometheus-community 
 spec:
   groups:
     - name: application.rules
@@ -15,20 +16,22 @@ spec:
           labels:
             severity: critical
           annotations:
-            summary: "Petclinic instance {{ $labels.instance }} is down."
+            # FIXED: Escaped {{ to {{ "{{" }} so Helm ignores it
+            summary: "Petclinic instance {{ "{{" }} $labels.instance }} is down."
             description: "Prometheus has not been able to scrape the metrics endpoint for Petclinic for more than 1 minute."
 
-        # B. HIGH CPU USAGE ALERT (80% for 5 minutes)
+        # B. HIGH CPU USAGE ALERT
         - alert: PetclinicHighCpuUsage
           expr: avg by (instance) (rate(process_cpu_usage{application="petclinic"}[5m])) > 0.8
           for: 5m
           labels:
             severity: warning
           annotations:
-            summary: "Petclinic CPU usage is high."
-            description: "Average CPU usage for instance {{ $labels.instance }} is above 80% for 5 minutes."
+            # FIXED: Escaped {{ to {{ "{{" }}
+            summary: "Petclinic CPU usage is high on {{ "{{" }} $labels.instance }}."
+            description: "Average CPU usage for instance {{ "{{" }} $labels.instance }} is above 80% for 5 minutes. Current usage: {{ "{{" }} $value }}"
 
-        # C. HIGH HEAP MEMORY USAGE ALERT (90% for 10 minutes)
+        # C. HIGH HEAP MEMORY USAGE ALERT
         - alert: PetclinicHighMemoryUsage
           expr: |
             (
@@ -40,5 +43,6 @@ spec:
           labels:
             severity: critical
           annotations:
-            summary: "Petclinic Heap Memory is nearing exhaustion."
-            description: "Heap memory usage on instance {{ $labels.instance }} is above 90%."
+            # FIXED: Escaped {{ to {{ "{{" }}
+            summary: "Petclinic Heap Memory is nearing exhaustion on {{ "{{" }} $labels.instance }}."
+            description: "Heap memory usage on instance {{ "{{" }} $labels.instance }} is above 90%. Current usage: {{ "{{" }} $value }}"
