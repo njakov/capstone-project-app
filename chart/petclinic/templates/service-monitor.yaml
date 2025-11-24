@@ -3,7 +3,7 @@ kind: ServiceMonitor
 metadata:
   name: {{ .Chart.Name }}
   labels:
-    release: kube-prometheus-stack # IMPORTANT: Matches the Prometheus Operator install name
+    release: prometheus-community
     app: {{ .Chart.Name }}
 spec:
   selector:
