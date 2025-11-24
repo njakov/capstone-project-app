@@ -1,0 +1,44 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: petclinic-alerts
+  labels:
+    release: prometheus-community # Ensure this matches your Prometheus Helm release name
+spec:
+  groups:
+    - name: application.rules
+      rules:
+        # A. APPLICATION DOWN ALERT
+        - alert: PetclinicInstanceDown
+          expr: up{job="petclinic"} == 0
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Petclinic instance {{ $labels.instance }} is down."
+            description: "Prometheus has not been able to scrape the metrics endpoint for Petclinic for more than 1 minute."
+
+        # B. HIGH CPU USAGE ALERT (80% for 5 minutes)
+        - alert: PetclinicHighCpuUsage
+          expr: avg by (instance) (rate(process_cpu_usage{application="petclinic"}[5m])) > 0.8
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Petclinic CPU usage is high."
+            description: "Average CPU usage for instance {{ $labels.instance }} is above 80% for 5 minutes."
+
+        # C. HIGH HEAP MEMORY USAGE ALERT (90% for 10 minutes)
+        - alert: PetclinicHighMemoryUsage
+          expr: |
+            (
+              sum by (instance) (jvm_memory_used_bytes{application="petclinic", area="heap"})
+              /
+              sum by (instance) (jvm_memory_max_bytes{application="petclinic", area="heap"})
+            ) > 0.9
+          for: 10m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Petclinic Heap Memory is nearing exhaustion."
+            description: "Heap memory usage on instance {{ $labels.instance }} is above 90%."
