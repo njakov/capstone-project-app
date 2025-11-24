@@ -5,6 +5,5 @@ metadata:
   labels:
     grafana_dashboard: "1"
 data:
-  # Load the massive JSON file automatically
   petclinic-dashboard.json: |
-    {{ .Files.Get "dashboards/4701_rev10.json" | indent 4 }}
+{{ .Files.Get "dashboards/4701_rev10.json" | indent 4 }}
