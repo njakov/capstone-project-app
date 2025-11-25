@@ -108,15 +108,6 @@ jobs:
           fi
 
       # ----------------------------------------------------------------
-      # STEP 4: KUBERNETES SETUP
-      # ----------------------------------------------------------------
-      - name: Get GKE Credentials
-        uses: google-github-actions/get-gke-credentials@v2
-        with:
-          cluster_name: "petclinic-gke-${{ inputs.environment }}"
-          location: ${{ env.REGION }}
-
-      # ----------------------------------------------------------------
       # STEP 5: CLEANUP & DEPLOY
       # ----------------------------------------------------------------
       - name: Clean Previous Deployment
@@ -128,18 +119,22 @@ jobs:
           else
             echo "No previous version found. Proceeding with fresh install."
           fi
-
-      - name: Deploy Helm Chart
+          
+      - name: Deploy with Helm
         run: |
           echo "Deploying ${{ inputs.version }} to ${{ inputs.environment }}"
+          # Connect to the specific cluster (Dev or Prod)
+          gcloud container clusters get-credentials petclinic-gke-${{ inputs.environment }} --region ${{ env.REGION }} --project ${{ env.PROJECT_ID }}
           
-          # Select Values File (dev vs prod config)
-          VALUES_FILE="./chart/petclinic/values-${{ inputs.environment }}.yaml"
+          # Construct the full Image URL dynamically
+          FULL_IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/${{ env.IMAGE_NAME }}"
           
-          # Deploy using the validated image
+          echo "Deploying Image: $FULL_IMAGE:${{ inputs.version }}"
+
+          # Run Helm Upgrade
           helm upgrade --install petclinic ./chart/petclinic \
-            --values $VALUES_FILE \
-            --set image.repository="${{ steps.config.outputs.image_repository }}" \
+            --values ./chart/petclinic/values-${{ inputs.environment }}.yaml \
+            --set image.repository="$FULL_IMAGE" \
             --set image.tag="${{ inputs.version }}" \
             --wait
 
