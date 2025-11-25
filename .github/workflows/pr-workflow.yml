@@ -20,12 +20,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Fix Docker Socket Permissions
-        run: |
-          echo "Adjusting Docker Socket permissions..."
-          sudo chmod 666 /var/run/docker.sock
-          ls -l /var/run/docker.sock
-
       # 1. Calculate Short SHA (7 letters)
       - name: Set Short SHA
         id: vars
