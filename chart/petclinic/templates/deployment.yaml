@@ -52,7 +52,7 @@ spec:
       volumes:
         - name: secrets-store-inline
           csi:
-            driver: secrets-store.csi.k8s.io
+            driver: secrets-store-gke.csi.k8s.io
             readOnly: true
             volumeAttributes:
               secretProviderClass: {{ .Chart.Name }}-secrets
