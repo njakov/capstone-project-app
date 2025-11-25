@@ -8,7 +8,8 @@ on:
 env:
   PROJECT_ID: "teak-advice-475415-i2"
   REGION: "europe-west1"
-  REPO_NAME: "petclinic-repo-prod" 
+  REPO_NAME_DEV: "petclinic-repo-dev"
+  REPO_NAME_PROD: "petclinic-repo-prod"
   IMAGE_NAME: "petclinic"
 
 jobs:
@@ -81,7 +82,7 @@ jobs:
           ls -l spring-petclinic.jar jmx.jar config.yaml
 
       - name: 'Docker Auth'
-        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.prod
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
 
       # Build and Export to Tar
       - name: Build Image (Export)
@@ -91,8 +92,8 @@ jobs:
           # Save to tar file to avoid Docker Socket version issues during scan
           outputs: type=docker,dest=/tmp/release_image.tar
           tags: |
-            ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/${{ env.IMAGE_NAME }}:${{ steps.semver.outputs.new_version }}
-            ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/${{ env.IMAGE_NAME }}:latest
+            ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME_PROD }}/${{ env.IMAGE_NAME }}:${{ steps.semver.outputs.new_version }}
+            ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME_PROD }}/${{ env.IMAGE_NAME }}:latest
 
       # Security Scan
       - name: Trivy Image Scan
@@ -109,6 +110,12 @@ jobs:
         with:
           context: .
           push: true
+          # Push to BOTH Repositories (Dev & Prod) with SemVer AND Latest tags
           tags: |
-            ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/${{ env.IMAGE_NAME }}:${{ steps.semver.outputs.new_version }}
-            ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/${{ env.IMAGE_NAME }}:latest
+            # Prod Registry
+            ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME_PROD }}/${{ env.IMAGE_NAME }}:${{ steps.semver.outputs.new_version }}
+            ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME_PROD }}/${{ env.IMAGE_NAME }}:latest
+            
+            # Dev Registry
+            ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME_DEV }}/${{ env.IMAGE_NAME }}:${{ steps.semver.outputs.new_version }}
+            ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME_DEV }}/${{ env.IMAGE_NAME }}:latest
