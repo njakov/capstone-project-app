@@ -1,19 +1,30 @@
-replicaCount: 2
+# chart/petclinic/values.yaml
+
+# 1. Scaling Defaults
+replicaCount: 1
+
+# 2. Image Configuration
 image:
-  repository: europe-west1-docker.pkg.dev/teak-advice-475415-i2/petclinic-repo-dev/petclinic
-  tag: latest
-  pullPolicy: Always
+  repository: "gcr.io/google-samples/hello-app" # Placeholder
+  pullPolicy: IfNotPresent
+  tag: ""
+
+# 3. Application Config
+cloudSql:
+  instanceConnectionName: ""
+
+# 4. Service Account
+serviceAccount:
+  create: true
+  gcpEmail: "" 
 
 service:
-  type: ClusterIP
+  type: LoadBalancer
   port: 80
 
 ingress:
-  enabled: true
+  enabled: false
   className: "nginx"
-  host: "petclinic.internal"
-
-googleProjectId: "teak-advice-475415-i2"
-
-cloudSql:
-  instanceConnectionName: "teak-advice-475415-i2:europe-west1:petclinic-db-dev"
+  host: "localhost"
+  
+resources: {}

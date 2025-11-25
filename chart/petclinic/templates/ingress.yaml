@@ -1,17 +1,25 @@
+{{- if .Values.ingress.enabled -}}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: {{ .Chart.Name }}
+  name: {{ include "petclinic.fullname" . }}
+  labels:
+    {{- include "petclinic.labels" . | nindent 4 }}
+  {{- with .Values.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 spec:
   ingressClassName: {{ .Values.ingress.className }}
   rules:
-    - host: {{ .Values.ingress.host }}
+    - host: {{ .Values.ingress.host | quote }}
       http:
         paths:
           - path: /
             pathType: Prefix
             backend:
               service:
-                name: {{ .Chart.Name }}
+                name: {{ include "petclinic.fullname" . }}
                 port:
                   number: {{ .Values.service.port }}
+{{- end }}

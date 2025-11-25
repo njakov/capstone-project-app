@@ -1,43 +1,47 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Chart.Name }}
+  name: {{ include "petclinic.fullname" . }}
+  labels:
+    {{- include "petclinic.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      app: {{ .Chart.Name }}
+      {{- include "petclinic.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        app: {{ .Chart.Name }}
+        {{- include "petclinic.selectorLabels" . | nindent 8 }}
     spec:
-      serviceAccountName: petclinic-sa
+      serviceAccountName: {{ include "petclinic.serviceAccountName" . }}
       containers:
         - name: {{ .Chart.Name }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
-            - containerPort: 8080
-          # 1. Mount the volume
+            - name: http
+              containerPort: 8080
+              protocol: TCP
           volumeMounts:
             - name: secrets-store-inline
               mountPath: "/mnt/secrets"
               readOnly: true
-
           env:
-            # 2. Activate MySQL Profile
             - name: SPRING_PROFILES_ACTIVE
               value: "mysql"
-            # 3. Tell Spring to read all files in /mnt/secrets/ as properties
+            # This tells Spring Boot 2.4+ to read properties from the files in this directory
+            # The CSI driver mounts 'spring.datasource.username' as a file here.
             - name: SPRING_CONFIG_IMPORT
               value: "configtree:/mnt/secrets/"
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
 
         - name: cloud-sql-proxy
-          image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.14.2
+          image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.5.0
           args:
-            - "--private-ip"
-            - "{{ .Values.cloudSql.instanceConnectionName }}"
+            # This value comes from values-dev.yaml or values-prod.yaml
+            - "--instances={{ .Values.cloudSql.instanceConnectionName }}=tcp:3306"
           securityContext:
             runAsNonRoot: true
           resources:
@@ -45,11 +49,10 @@ spec:
               memory: "256Mi"
               cpu: "100m"
 
-      # 4. Define the Volume
       volumes:
         - name: secrets-store-inline
           csi:
-            driver: secrets-store-gke.csi.k8s.io
+            driver: secrets-store.csi.k8s.io
             readOnly: true
             volumeAttributes:
               secretProviderClass: {{ .Chart.Name }}-secrets
