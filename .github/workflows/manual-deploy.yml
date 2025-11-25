@@ -107,6 +107,15 @@ jobs:
             exit 1
           fi
 
+      - name: Set Registry Name
+        id: set-repo
+        run: |
+          if [[ "${{ inputs.environment }}" == "prod" ]]; then
+            echo "REPO_NAME=petclinic-repo-prod" >> $GITHUB_ENV
+          else
+            echo "REPO_NAME=petclinic-repo-dev" >> $GITHUB_ENV
+          fi
+          
       # ----------------------------------------------------------------
       # STEP 5: CLEANUP & DEPLOY
       # ----------------------------------------------------------------
