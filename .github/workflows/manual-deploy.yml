@@ -119,7 +119,7 @@ jobs:
           else
             echo "No previous version found. Proceeding with fresh install."
           fi
-          
+
       - name: Deploy with Helm
         run: |
           echo "Deploying ${{ inputs.version }} to ${{ inputs.environment }}"
@@ -133,7 +133,7 @@ jobs:
 
           # Run Helm Upgrade
           helm upgrade --install petclinic ./chart/petclinic \
-            --values ./chart/petclinic/values-${{ inputs.environment }}.yaml \
+            --values ./chart/petclinic/values.yaml \
             --set image.repository="$FULL_IMAGE" \
             --set image.tag="${{ inputs.version }}" \
             --wait
