@@ -112,10 +112,7 @@ jobs:
           push: true
           # Push to BOTH Repositories (Dev & Prod) with SemVer AND Latest tags
           tags: |
-            # Prod Registry
             ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME_PROD }}/${{ env.IMAGE_NAME }}:${{ steps.semver.outputs.new_version }}
             ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME_PROD }}/${{ env.IMAGE_NAME }}:latest
-            
-            # Dev Registry
             ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME_DEV }}/${{ env.IMAGE_NAME }}:${{ steps.semver.outputs.new_version }}
             ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME_DEV }}/${{ env.IMAGE_NAME }}:latest
