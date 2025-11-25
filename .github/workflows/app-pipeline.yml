@@ -2,7 +2,7 @@ name: Application Pipeline
 
 on:
   push:
-    branches: [ "main", "monitoring" ]
+    branches: [ "monitoring" ]
   workflow_dispatch:
 
 env:
