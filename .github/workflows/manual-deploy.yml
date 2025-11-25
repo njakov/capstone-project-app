@@ -126,14 +126,17 @@ jobs:
           # Connect to the specific cluster (Dev or Prod)
           gcloud container clusters get-credentials petclinic-gke-${{ inputs.environment }} --region ${{ env.REGION }} --project ${{ env.PROJECT_ID }}
           
-          # Construct the full Image URL dynamically
-          FULL_IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/${{ env.IMAGE_NAME }}"
+          if [ -z "$REPO_NAME" ]; then
+            echo "Error: REPO_NAME is empty"
+            exit 1
+          fi
+          
+          FULL_IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/$REPO_NAME/${{ env.IMAGE_NAME }}"
           
           echo "Deploying Image: $FULL_IMAGE:${{ inputs.version }}"
 
-          # Run Helm Upgrade
           helm upgrade --install petclinic ./chart/petclinic \
-            --values ./chart/petclinic/values.yaml \
+            --values ./chart/petclinic/values-${{ inputs.environment }}.yaml \
             --set image.repository="$FULL_IMAGE" \
             --set image.tag="${{ inputs.version }}" \
             --wait
