@@ -3,6 +3,10 @@
 # ---------------------------------------------------------------------------
 FROM openjdk:25-ea-21-jdk-slim
 
+RUN apt-get update && \
+    apt-get upgrade -y && \
+    rm -rf /var/lib/apt/lists/*
+
 WORKDIR /opt/spring-petclinic
 
 # ---------------------------------------------------------------------------
