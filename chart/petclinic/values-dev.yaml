@@ -7,7 +7,7 @@ cloudSql:
   instanceConnectionName: "teak-advice-475415-i2:europe-west1:petclinic-db-dev"
 
 serviceAccount:
-  gcpEmail: "petclinic-sa@teak-advice-475415-i2.iam.gserviceaccount.com"
+  gcpEmail: "petclinic-sa-dev@teak-advice-475415-i2.iam.gserviceaccount.com"
 
 ingress:
   enabled: true
