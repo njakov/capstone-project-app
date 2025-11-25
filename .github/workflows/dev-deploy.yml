@@ -13,7 +13,7 @@ env:
 
 jobs:
   build-and-release:
-    runs-on: [self-hosted, dev]
+    runs-on: [self-hosted, prod]
     permissions:
       contents: write 
       id-token: write 
@@ -81,7 +81,7 @@ jobs:
           ls -l spring-petclinic.jar jmx.jar config.yaml
 
       - name: 'Docker Auth'
-        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.prod
 
       # Build and Export to Tar
       - name: Build Image (Export)
@@ -91,14 +91,14 @@ jobs:
           # Save to tar file to avoid Docker Socket version issues during scan
           outputs: type=docker,dest=/tmp/release_image.tar
           tags: |
-            ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/${{ env.IMAGE_NAME }}:${{ steps.semver.outputs.new_version }}
-            ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/${{ env.IMAGE_NAME }}:latest
+            ${{ env.REGION }}-docker.pkg.prod/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/${{ env.IMAGE_NAME }}:${{ steps.semver.outputs.new_version }}
+            ${{ env.REGION }}-docker.pkg.prod/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/${{ env.IMAGE_NAME }}:latest
 
       # Security Scan
       - name: Trivy Image Scan
         uses: aquasecurity/trivy-action@0.33.1
         with:
-          image-ref: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/petclinic:${{ steps.vars.outputs.sha_short }}
+          image-ref: ${{ env.REGION }}-docker.pkg.prod/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/petclinic:${{ steps.vars.outputs.sha_short }}
           format: 'table'
           exit-code: '1' # Fail pipeline if CRITICAL/HIGH issues found
           ignore-unfixed: true
@@ -110,5 +110,5 @@ jobs:
           context: .
           push: true
           tags: |
-            ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/${{ env.IMAGE_NAME }}:${{ steps.semver.outputs.new_version }}
-            ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/${{ env.IMAGE_NAME }}:latest
+            ${{ env.REGION }}-docker.pkg.prod/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/${{ env.IMAGE_NAME }}:${{ steps.semver.outputs.new_version }}
+            ${{ env.REGION }}-docker.pkg.prod/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/${{ env.IMAGE_NAME }}:latest
