@@ -18,7 +18,7 @@ jobs:
       id-token: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       # Calculate Short SHA (7 letters)
       - name: Set Short SHA
@@ -53,7 +53,7 @@ jobs:
 
       # Build Docker Image
       - name: Build Docker Image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6.18.0
         with:
           context: .
           load: true
@@ -71,7 +71,7 @@ jobs:
 
       # Push Image (SHA + Latest)
       - name: Push Docker Image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6.18.0
         with:
           context: .
           push: true
