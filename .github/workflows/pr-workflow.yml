@@ -20,15 +20,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # 1. Calculate Short SHA (7 letters)
+      # Calculate Short SHA (7 letters)
       - name: Set Short SHA
         id: vars
         run: echo "sha_short=$(git rev-parse --short=7 HEAD)" >> $GITHUB_OUTPUT
 
-      # 2. Static Analysis, Tests, Build Report & Package
-      # 'verify' runs checkstyle, unit tests, and packages the application
-      - name: Build and Verify (Tests + Checkstyle)
-        run: ./mvnw verify
+      # Static Analysis
+      - name: Static Analysis (Checkstyle)
+        run: ./mvnw checkstyle:check
+
+      # Unit Tests
+      - name: Run Unit Tests
+        run: ./mvnw test
+
+      # Package
+      - name: Package Application
+        run: ./mvnw package -DskipTests
 
       - name: Prepare Docker Files
         run: |
