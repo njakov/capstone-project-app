@@ -115,7 +115,7 @@ jobs:
           else
             echo "REPO_NAME=petclinic-repo-dev" >> $GITHUB_ENV
           fi
-          
+
       # ----------------------------------------------------------------
       # STEP 5: CLEANUP & DEPLOY
       # ----------------------------------------------------------------
@@ -145,7 +145,7 @@ jobs:
           echo "Deploying Image: $FULL_IMAGE:${{ inputs.version }}"
 
           helm upgrade --install petclinic ./chart/petclinic \
-            --values ./chart/petclinic/values-${{ inputs.environment }}.yaml \
+            --values ./chart/petclinic/values.yaml \
             --set image.repository="$FULL_IMAGE" \
             --set image.tag="${{ inputs.version }}" \
             --wait
