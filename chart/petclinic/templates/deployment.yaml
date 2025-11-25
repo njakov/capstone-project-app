@@ -40,8 +40,8 @@ spec:
         - name: cloud-sql-proxy
           image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.5.0
           args:
-            # This value comes from values-dev.yaml or values-prod.yaml
-            - "--instances={{ .Values.cloudSql.instanceConnectionName }}=tcp:3306"
+            - "--private-ip"
+            - "{{ .Values.cloudSql.instanceConnectionName }}"
           securityContext:
             runAsNonRoot: true
           resources:
