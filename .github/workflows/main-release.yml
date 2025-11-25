@@ -98,12 +98,12 @@ jobs:
       - name: Trivy Image Scan
         uses: aquasecurity/trivy-action@0.33.1
         with:
-          image-ref: ${{ env.REGION }}-docker.pkg.prod/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/petclinic:${{ steps.vars.outputs.sha_short }}
+          input: /tmp/release_image.tar
           format: 'table'
-          exit-code: '1' # Fail pipeline if CRITICAL/HIGH issues found
+          exit-code: '1'
           ignore-unfixed: true
           severity: 'CRITICAL,HIGH'
-
+          
       - name: Push Image to Registry
         uses: docker/build-push-action@v6.18.0
         with:
