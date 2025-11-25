@@ -30,6 +30,17 @@ jobs:
       - name: Build and Verify (Tests + Checkstyle)
         run: ./mvnw verify
 
+      - name: Prepare Docker Files
+        run: |
+          # 1. Move and rename the App JAR
+          mv target/*.jar spring-petclinic.jar
+          
+          # 2. Download the Prometheus JMX Agent
+          curl -L https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/0.20.0/jmx_prometheus_javaagent-0.20.0.jar -o jmx.jar
+          
+          # 3. Verify all files exist before building
+          ls -l spring-petclinic.jar jmx.jar config.yaml
+
       - name: 'Docker Auth'
         run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
 
