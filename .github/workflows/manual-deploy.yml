@@ -1,0 +1,152 @@
+name: 03 - Manual Deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target Environment'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - prod
+      version:
+        description: 'Version Tag to Deploy (e.g., v1.0.4 or a1b2c3d)'
+        required: true
+        type: string
+
+env:
+  PROJECT_ID: "teak-advice-475415-i2"
+  REGION: "europe-west1"
+  # Define registries
+  REPO_NAME_DEV: "petclinic-repo-dev"
+  REPO_NAME_PROD: "petclinic-repo-prod"
+  IMAGE_NAME: "petclinic"
+
+jobs:
+  deploy:
+    name: Deploy ${{ inputs.version }} to ${{ inputs.environment }}
+    # Dynamic Runner Selection:
+    # If Prod selected -> uses 'prod'
+    # If Dev selected -> uses 'dev'
+    runs-on: [self-hosted, "${{ inputs.environment == 'prod' && 'prod' || 'dev' }}"]
+    
+    # Enables "Required Reviewers" protection if 'prod' is selected
+    environment: ${{ inputs.environment }}
+    
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v6
+      - name: Validate & Select Registry
+        id: config
+        env:
+          TARGET_ENV: ${{ inputs.environment }}
+          TAG: ${{ inputs.version }}
+        run: |
+          echo "Analyzing deployment request..."
+          
+          # Regex for SemVer (starts with v, followed by numbers)
+          SEMVER_REGEX="^v[0-9]+\.[0-9]+\.[0-9]+$"
+          
+          if [[ "$TAG" =~ $SEMVER_REGEX ]]; then
+            IS_SEMVER="true"
+            echo "Tag '$TAG' is a Release Version."
+          else
+            IS_SEMVER="false"
+            echo "Tag '$TAG' is a Dev/Hash Version."
+          fi
+
+          # 1. PROD GUARDRAIL: Only allow SemVer on Prod
+          if [[ "$TARGET_ENV" == "prod" && "$IS_SEMVER" == "false" ]]; then
+            echo "::error::CRITICAL: You cannot deploy non-SemVer tags to Production."
+            exit 1
+          fi
+
+          # 2. SELECT REGISTRY
+          # Since we push Dual Registries in Main Pipeline:
+          # - Dev Environment -> Uses Dev Registry
+          # - Prod Environment -> Uses Prod Registry
+          # This keeps environments isolated but content consistent.
+          if [[ "$TARGET_ENV" == "prod" ]]; then
+            REPO_NAME="${{ env.REPO_NAME_PROD }}"
+          else
+            REPO_NAME="${{ env.REPO_NAME_DEV }}"
+          fi
+          
+          FULL_IMAGE_URL="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/$REPO_NAME/${{ env.IMAGE_NAME }}"
+          echo "Selected Registry: $REPO_NAME"
+          echo "image_repository=$FULL_IMAGE_URL" >> $GITHUB_OUTPUT
+
+      # ----------------------------------------------------------------
+      # STEP 2: AUTHENTICATION
+      # ----------------------------------------------------------------
+
+      - name: 'Docker Auth'
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
+
+      # ----------------------------------------------------------------
+      # STEP 3: VERIFY IMAGE EXISTS
+      # Fails fast if you typed a typo in the version
+      # ----------------------------------------------------------------
+      - name: Check Image Existence
+        env:
+          IMAGE_URL: ${{ steps.config.outputs.image_repository }}
+          TAG: ${{ inputs.version }}
+        run: |
+          echo "Checking if image exists: $IMAGE_URL:$TAG"
+          
+          # gcloud container images describe returns exit code 1 if not found
+          if gcloud container images describe "$IMAGE_URL:$TAG" > /dev/null 2>&1; then
+            echo "Image found! Proceeding..."
+          else
+            echo "::error::Image $IMAGE_URL:$TAG NOT FOUND. Please check the version tag."
+            exit 1
+          fi
+
+      # ----------------------------------------------------------------
+      # STEP 4: KUBERNETES SETUP
+      # ----------------------------------------------------------------
+      - name: Get GKE Credentials
+        uses: google-github-actions/get-gke-credentials@v2
+        with:
+          cluster_name: "petclinic-gke-${{ inputs.environment }}"
+          location: ${{ env.REGION }}
+
+      # ----------------------------------------------------------------
+      # STEP 5: CLEANUP & DEPLOY
+      # ----------------------------------------------------------------
+      - name: Clean Previous Deployment
+        run: |
+          echo "Checking for existing release on ${{ inputs.environment }}..."
+          if helm status petclinic > /dev/null 2>&1; then
+            echo "Previous version found. Removing it..."
+            helm uninstall petclinic --wait
+          else
+            echo "No previous version found. Proceeding with fresh install."
+          fi
+
+      - name: Deploy Helm Chart
+        run: |
+          echo "Deploying ${{ inputs.version }} to ${{ inputs.environment }}"
+          
+          # Select Values File (dev vs prod config)
+          VALUES_FILE="./chart/petclinic/values-${{ inputs.environment }}.yaml"
+          
+          # Deploy using the validated image
+          helm upgrade --install petclinic ./chart/petclinic \
+            --values $VALUES_FILE \
+            --set image.repository="${{ steps.config.outputs.image_repository }}" \
+            --set image.tag="${{ inputs.version }}" \
+            --wait
+
+      - name: Verify Deployment
+        run: |
+          SERVICE_IP=$(kubectl get svc petclinic -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+          echo "---------------------------------------------------"
+          echo "DEPLOYMENT SUCCESSFUL to ${{ inputs.environment }}"
+          echo "Application Link: http://$SERVICE_IP"
+          echo "---------------------------------------------------"
