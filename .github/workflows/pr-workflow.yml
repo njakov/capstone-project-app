@@ -55,7 +55,7 @@ jobs:
 
       # 5. Security Scan (Trivy on Image)
       - name: Trivy Image Scan
-        uses: aquasecurity/trivy-action@0.16.1
+        uses: aquasecurity/trivy-action@0.33.1
         with:
           image-ref: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/petclinic:${{ steps.vars.outputs.sha_short }}
           format: 'table'
