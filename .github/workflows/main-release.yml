@@ -23,9 +23,8 @@ jobs:
       new_version: ${{ steps.semver.outputs.new_version }}
 
     steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0 
+      - name: Checkout Code
+        uses: actions/checkout@v6
 
       # 1. Setup Python & Dependencies
       - name: Set up Python
