@@ -23,12 +23,7 @@ jobs:
       new_version: ${{ steps.semver.outputs.new_version }}
 
     steps:
-      - name: Clean Workspace
-        run: |
-          echo "Cleaning up workspace..."
-          sudo rm -rf "$GITHUB_WORKSPACE"
-          mkdir -p "$GITHUB_WORKSPACE"
-
+      
       - name: Checkout Code
         uses: actions/checkout@v6
 
