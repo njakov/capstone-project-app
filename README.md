@@ -173,7 +173,8 @@ The modules/middleware module installs essential shared services into the cluste
 1.  **Nginx Ingress Controller:** Managed via Helm, configured as a LoadBalancer (type: ClusterIP) with restricted source ranges.
     
 2.  **Kube Prometheus Stack:** Deploys Prometheus and Grafana into the monitoring namespace for cluster metrics and visualization.
-    
+
+![Monitoring](./.github/assets/monitoring-alerts.gif) 
 
 Important Notes
 ------------------
