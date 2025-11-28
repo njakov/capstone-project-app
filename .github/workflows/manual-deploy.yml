@@ -117,18 +117,8 @@ jobs:
           fi
           
       # ----------------------------------------------------------------
-      # STEP 5: CLEANUP & DEPLOY
+      # STEP 5: DEPLOY
       # ----------------------------------------------------------------
-      - name: Clean Previous Deployment
-        run: |
-          echo "Checking for existing release on ${{ inputs.environment }}..."
-          if helm status petclinic > /dev/null 2>&1; then
-            echo "Previous version found. Removing it..."
-            helm uninstall petclinic --wait
-          else
-            echo "No previous version found. Proceeding with fresh install."
-          fi
-
       - name: Deploy with Helm
         run: |
           echo "Deploying ${{ inputs.version }} to ${{ inputs.environment }}"

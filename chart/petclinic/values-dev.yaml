@@ -1,4 +1,4 @@
-replicaCount: 1
+replicaCount: 2
 
 cloudSql:
   instanceConnectionName: "teak-advice-475415-i2:europe-west1:petclinic-db-dev"
