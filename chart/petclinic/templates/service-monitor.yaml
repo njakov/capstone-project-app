@@ -1,14 +1,14 @@
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
-  name: {{ .Chart.Name }}
+  name: {{ include "petclinic.fullname" . }}
   labels:
     release: prometheus-community
-    app: {{ .Chart.Name }}
+    {{- include "petclinic.labels" . | nindent 4 }}
 spec:
   selector:
     matchLabels:
-      app: {{ .Chart.Name }}
+      {{- include "petclinic.selectorLabels" . | nindent 6 }}
   endpoints:
     - port: http-web
       path: /actuator/prometheus
