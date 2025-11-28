@@ -31,6 +31,11 @@ For more details, please refer to:
 
 ## Project Demo
 ![Project Demo](./.github/assets/monitoring.gif) 
+
+### Production
+![Production](./.github/assets/prod.png)
+### Development
+![Development](./.github/assets/dev.png)
 ---
 
 ## Repository Structure
@@ -108,11 +113,11 @@ Before deploying the application infrastructure, you must bootstrap the environm
 
 To allow the pipelines to run successfully, add the following secrets to your GitHub Repository settings:
 
-*   GCP\_PROJECT\_ID: Your Project ID (e.g., teak-advice-475415-i2).
+*   `GCP_PROJECT_ID`: Your Project ID (e.g., my-project-id).
     
-*   GCP\_REGION: The region for resources (e.g., europe-west1).
+*   `GCP_REGION`: The region for resources (e.g., europe-west1).
     
-*   TF\_STATE\_BUCKET: The name of the GCS bucket created in Step 1 (e.g., terraform-state-bucket-teak-advice-475415-i2).
+*   `TF_STATE_BUCKET`: The name of the GCS bucket created in Step 1 (e.g., terraform-state-my-project-id).
     
 
 CI/CD Pipelines
@@ -142,6 +147,9 @@ The project utilizes **GitHub Actions** with a self-hosted runner located inside
 *   **Protection:** Enforces that Production deployments can **only** occur from the main branch. If a prod deployment is attempted from another branch, it exits with an error.
     
 *   **Workflow:** Similar to Dev, but targets the prod environment state and workspace.
+
+### Google Cloud Platform 
+![GCP](./.github/assets/gke.png)
     
 ### Deployment Pipelines
 
