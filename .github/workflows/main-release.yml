@@ -115,3 +115,8 @@ jobs:
             ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME_PROD }}/${{ env.IMAGE_NAME }}:latest
             ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME_DEV }}/${{ env.IMAGE_NAME }}:${{ steps.semver.outputs.new_version }}
             ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME_DEV }}/${{ env.IMAGE_NAME }}:latest
+
+      - name: Cleanup Workspace Permissions
+        if: always()
+        run: |
+          sudo chown -R $USER:$USER .
