@@ -1,5 +1,3 @@
-# chart/petclinic/values-prod.yaml
-
 replicaCount: 2
 
 cloudSql:
@@ -10,6 +8,7 @@ serviceAccount:
 
 ingress:
   enabled: true
+  className: "nginx"
   host: "petclinic.internal"
 
 image:

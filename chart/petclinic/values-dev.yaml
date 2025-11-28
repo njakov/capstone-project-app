@@ -1,6 +1,3 @@
-# chart/petclinic/values-dev.yaml
-
-# Dev Environment Specifics
 replicaCount: 1
 
 cloudSql:
@@ -11,6 +8,7 @@ serviceAccount:
 
 ingress:
   enabled: true
+  className: "nginx"
   host: "dev.petclinic.internal"
   
 image:
