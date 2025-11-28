@@ -23,7 +23,9 @@ jobs:
       new_version: ${{ steps.semver.outputs.new_version }}
 
     steps:
-
+      - name: 🧹 Clean Workspace
+        run: |
+          docker run --rm -v "$GITHUB_WORKSPACE:/workspace" -w /workspace alpine sh -c "rm -rf ./* ./.git"
       - name: Checkout Code
         uses: actions/checkout@v6
 
