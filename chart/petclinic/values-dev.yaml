@@ -1,10 +1,10 @@
 replicaCount: 2
 
 cloudSql:
-  instanceConnectionName: "teak-advice-475415-i2:europe-west1:petclinic-db-dev"
+  instanceConnectionName: "project-17c62de2-ec01-476d-908:europe-west1:petclinic-db-dev"
 
 serviceAccount:
-  gcpEmail: "petclinic-sa-dev@teak-advice-475415-i2.iam.gserviceaccount.com"
+  gcpEmail: "petclinic-sa-dev@project-17c62de2-ec01-476d-908.iam.gserviceaccount.com"
 
 ingress:
   enabled: true
@@ -12,7 +12,7 @@ ingress:
   host: "dev.petclinic.internal"
   
 image:
-  repository: "europe-west1-docker.pkg.dev/teak-advice-475415-i2/petclinic-repo-dev/petclinic"
+  repository: "europe-west1-docker.pkg.dev/project-17c62de2-ec01-476d-908/petclinic-repo-dev/petclinic"
 
-googleProjectId: "teak-advice-475415-i2"
+googleProjectId: "project-17c62de2-ec01-476d-908"
 environment: "dev"

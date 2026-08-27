@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 env:
-  PROJECT_ID: "teak-advice-475415-i2"
+  PROJECT_ID: "project-17c62de2-ec01-476d-908"
   REGION: "europe-west1"
   REPO_NAME_DEV: "petclinic-repo-dev"
   REPO_NAME_PROD: "petclinic-repo-prod"
