@@ -13,29 +13,39 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.springframework.samples.petclinic.vet;
+package org.springframework.samples.petclinic.owner;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.util.SerializationUtils;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * @author Dave Syer
- */
-class VetTests {
+class OwnerTests {
 
 	@Test
-	void serialization() {
-		Vet vet = new Vet();
-		vet.setFirstName("Zaphod");
-		vet.setLastName("Beeblebrox");
-		vet.setId(123);
-		@SuppressWarnings("deprecation")
-		Vet other = (Vet) SerializationUtils.deserialize(SerializationUtils.serialize(vet));
-		assertThat(other.getFirstName()).isEqualTo(vet.getFirstName());
-		assertThat(other.getLastName()).isEqualTo(vet.getLastName());
-		assertThat(other.getId()).isEqualTo(vet.getId());
+	void addPetAddsPersistedPet() {
+		Owner owner = new Owner();
+		Pet pet = new Pet();
+		pet.setId(5);
+		pet.setName("Buddy");
+
+		owner.addPet(pet);
+
+		assertTrue(owner.getPets().contains(pet));
+		assertEquals(1, owner.getPets().size());
+	}
+
+	@Test
+	void addPetDoesNotAddDuplicatePet() {
+		Owner owner = new Owner();
+		Pet pet = new Pet();
+		pet.setId(5);
+		pet.setName("Buddy");
+
+		owner.addPet(pet);
+		owner.addPet(pet);
+
+		assertEquals(1, owner.getPets().size());
 	}
 
 }

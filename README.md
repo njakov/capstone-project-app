@@ -1,197 +1,182 @@
-# Advanced Capstone Project: Spring PetClinic Application
+# Spring PetClinic Capstone Application
+
+This repository extends the official [Spring PetClinic](https://github.com/spring-projects/spring-petclinic)
+application with container images, Helm deployments, and GCP delivery workflows.
+
+## Understanding the Spring Petclinic application with a few diagrams
+
+See the presentation here:
+[Spring Petclinic Sample Application (legacy slides)](https://speakerdeck.com/michaelisvy/spring-petclinic-sample-application?slide=20)
+
+> **Note:** These slides refer to a legacy, pre–Spring Boot version of Petclinic and may not reflect the current Spring Boot–based implementation.
+> For up-to-date information, please refer to this repository and its documentation.
 
 
-This repository serves as the **Application Source Code** component of the DevOps Capstone Project for the GridDynamics Internship.
+## Run Petclinic locally
 
-It contains the Java Spring Boot application (forked from the official Spring PetClinic), along with the containerization configurations, Helm charts, and CI/CD pipelines required to build and deploy the application to Kubernetes.
+Spring Petclinic is a [Spring Boot](https://spring.io/guides/gs/spring-boot) application built using [Maven](https://spring.io/guides/gs/maven/) or [Gradle](https://spring.io/guides/gs/gradle/).
+Java 17 or later is required for the build, and the application can run with Java 17 or newer.
 
-## Repository Contents
+You first need to clone the project locally:
 
-This repository is organized to support the full application lifecycle:
+```bash
+git clone https://github.com/spring-projects/spring-petclinic.git
+cd spring-petclinic
+```
+If you are using Maven, you can start the application on the command-line as follows:
 
-* **Application Code** (`src/`): The core Spring Boot application source code, forked from [spring-projects/spring-petclinic](https://github.com/spring-projects/spring-petclinic).
-* **Containerization** (`Dockerfile`): A multi-stage Dockerfile located at the root for building the application image.
-* **Kubernetes Deployment** (`chart/petclinic`): A custom Helm chart used to deploy the application to the Kubernetes cluster. It includes templates for Deployments, Services, Ingress, and ConfigMaps.
-* **CI/CD Pipelines** (`.github/workflows`): Automated GitHub Actions workflows for continuous integration and delivery.
+```bash
+./mvnw spring-boot:run
+```
+With Gradle, the command is as follows:
 
-For more details, please refer to:
-* [Capstone Project Description ](.github/assets/Capstone%20advanced%20k8s%20project.pdf)
-* [Spring-Petclinic App Repository](https://github.com/njakov/capstone-project-app)
+```bash
+./gradlew bootRun
+```
 
-## Project Overview
+You can then access the Petclinic at <http://localhost:8080/>.
 
-* **Cloud Provider:** Google Cloud Platform (GCP) 
-* **Infrastructure Tool:** Terraform (State stored in GCS with versioning)
-* **Orchestrator:** Google Kubernetes Engine (GKE) - Private Cluster
-* **Database:** Cloud SQL (MySQL) - Private IP only
-* **Secrets Management:** Google Secret Manager
-* **CI/CD:** GitHub Actions (Self-hosted runners)
-* **Configuration Management:** Helm 
-* **Monitoring:** Prometheus & Grafana (via Helm) 
+<img width="1042" alt="petclinic-screenshot" src="https://cloud.githubusercontent.com/assets/838318/19727082/2aee6d6c-9b8e-11e6-81fe-e889a5ddfded.png">
 
-## Project Demo
-![Project Demo](./.github/assets/monitoring.gif) 
+You can, of course, run Petclinic in your favorite IDE.
+See below for more details.
 
-### Production
-![Production](./.github/assets/prod.png)
-### Development
-![Development](./.github/assets/dev.png)
----
+## Building a Container
 
-## Repository Structure
+There is no `Dockerfile` in this project. You can build a container image (if you have a docker daemon) using the Spring Boot build plugin:
 
-```text
-├── .github/workflows/       # CI/CD Pipelines
-├── environments/
-│   ├── bootstrap/           # Initial setup (VPC, Runner, State Bucket)
-│   ├── dev/                 # Development environment entry point
-│   └── prod/                # Production environment entry point
-├── modules/                 # Reusable Terraform modules
-│   ├── artifact-registry/   # Docker container storage
-│   ├── cloud-sql/           # Managed MySQL database
-│   ├── gke/                 # Kubernetes Cluster configuration
-│   ├── identity/            # Service Accounts & Workload Identity
-│   ├── middleware/          # Helm charts (Ingress, Prometheus)
-│   ├── network/             # VPC, Subnets, Firewalls, NAT
-│   └── runner/              # Self-hosted GitHub Action Runner VM
-├── scripts/                 # Bash scripts for setup and bootstrapping
-└── .tfsec/                  # Security scanner configuration
-``` 
+```bash
+./mvnw spring-boot:build-image
+```
 
-## Architecture
+## Running the Container Image
 
-The infrastructure follows a modular design with environment separation (`dev`, `prod`) and a bootstrap layer.
+```bash
+docker images | grep petclinic
+docker run -p 8080:8080 docker.io/library/spring-petclinic:latest
+```
 
-### Key Components
-1.  **Network (`modules/network`):**
-    * Custom VPC with private subnets.
-    * **Cloud NAT:** Allows private nodes to access the internet for updates without exposing public IPs.
-    * **IAP Tunneling:** SSH access to internal VMs (Runners) is restricted to Identity-Aware Proxy; no public SSH ports are open.
-2.  **Compute (`modules/gke` & `modules/runner`):**
-    * **GKE:** Private cluster with VPC-native networking. Autoscaling enabled (1-3 nodes) based on CPU usage.
-    * **GitHub Runner:** A dedicated VM in the private subnet acting as a self-hosted runner for CI/CD pipelines. It comes pre-installed with Docker, Terraform, Helm, Java 25, and security scanners (TFSec, TFLint).
-3.  **Database (`modules/cloud-sql`):**
-    * Cloud SQL (MySQL 8.0) connected via Private Service Access (VPC Peering).
-    * Passwords are generated randomly and stored immediately in **Google Secret Manager**.
-4.  **Security:**
-    * **Workload Identity:** GKE Service Accounts map to GCP Service Accounts for fine-grained permissions.
-    * **Secret Manager:** Centralized management for DB credentials and URLs.
-    * **Least Privilege:** Custom Service Accounts with specific IAM roles for Runners and Nodes.
+## In case you find a bug/suggested improvement for Spring Petclinic
 
-## Architecture Diagram
-![Architecture Diagram](./.github/assets/architecture-diagram.png)
+Our issue tracker is available [here](https://github.com/spring-projects/spring-petclinic/issues).
 
+## Database configuration
 
-## Getting Started
+In its default configuration, Petclinic uses an in-memory database (H2) which
+gets populated at startup with data. The h2 console is exposed at `http://localhost:8080/h2-console`,
+and it is possible to inspect the content of the database using the `jdbc:h2:mem:<uuid>` URL. The UUID is printed at startup to the console.
 
-### Prerequisites  
+A similar setup is provided for MySQL and PostgreSQL if a persistent database configuration is needed. Note that whenever the database type changes, the app needs to run with a different profile: `spring.profiles.active=mysql` for MySQL or `spring.profiles.active=postgres` for PostgreSQL. See the [Spring Boot documentation](https://docs.spring.io/spring-boot/how-to/properties-and-configuration.html#howto.properties-and-configuration.set-active-spring-profiles) for more detail on how to set the active profile.
 
-1.  **GCP Project:** You must have a Google Cloud Project ID (e.g., `my-gcp-project`).  
-2.  **Google Cloud SDK:** Installed and authenticated locally.  
-3.  **Terraform:** Installed (v1.14+).  
+You can start MySQL or PostgreSQL locally with whatever installer works for your OS or use docker:
 
-### Step 1: Initial GCP Setup  
-Run the setup script to enable required APIs (KMS, Storage, IAM), create the Terraform State Bucket, and set up the Service Account with necessary permissions. 
- 
-```bash  chmod +x scripts/setup_gcp.sh  ./scripts/setup_gcp.sh   ```
+```bash
+docker run -e MYSQL_USER=petclinic -e MYSQL_PASSWORD=petclinic -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=petclinic -p 3306:3306 mysql:9.7
+```
 
-*   **What this does:** This script executes create-bucket.sh to provision the GCS backend with versioning and setup-terraform-sa.sh to create the Service Account and assign IAM roles.
-    
+or
 
-### Step 2: Bootstrap Environment (Network & Runner)
+```bash
+docker run -e POSTGRES_USER=petclinic -e POSTGRES_PASSWORD=petclinic -e POSTGRES_DB=petclinic -p 5432:5432 postgres:18.4
+```
 
-Before deploying the application infrastructure, you must bootstrap the environment. This layer creates the VPC, Subnets, and the Self-Hosted Runner VM required for the CI/CD pipelines.
+Further documentation is provided for [MySQL](https://github.com/spring-projects/spring-petclinic/blob/main/src/main/resources/db/mysql/petclinic_db_setup_mysql.txt)
+and [PostgreSQL](https://github.com/spring-projects/spring-petclinic/blob/main/src/main/resources/db/postgres/petclinic_db_setup_postgres.txt).
 
-```bash  chmod +x scripts/bootstra-env.sh  ./scripts/bootstrap-env.sh <ENV-NAME>  ```
+Instead of vanilla `docker` you can also use the provided `docker-compose.yml` file to start the database containers. Each one has a service named after the Spring profile:
 
-*   **What this does:** This script initializes Terraform in environments/bootstrap and applies the configuration using the corresponding .tfvars file (e.g., dev.tfvars).
+```bash
+docker compose up mysql
+```
 
-*   **Output:** Upon completion, it will output the runner\_ssh\_command needed to access the private runner VM.
-    
+or
 
-### Step 3: Configure GitHub Secrets
+```bash
+docker compose up postgres
+```
 
-To allow the pipelines to run successfully, add the following secrets to your GitHub Repository settings:
+## Test Applications
 
-*   `GCP_PROJECT_ID`: Your Project ID (e.g., my-project-id).
-    
-*   `GCP_REGION`: The region for resources (e.g., europe-west1).
-    
-*   `TF_STATE_BUCKET`: The name of the GCS bucket created in Step 1 (e.g., terraform-state-my-project-id).
-    
+At development time we recommend you use the test applications set up as `main()` methods in `PetClinicIntegrationTests` (using the default H2 database and also adding Spring Boot Devtools), `MySqlTestApplication` and `PostgresIntegrationTests`. These are set up so that you can run the apps in your IDE to get fast feedback and also run the same classes as integration tests against the respective database. The MySql integration tests use Testcontainers to start the database in a Docker container, and the Postgres tests use Docker Compose to do the same thing.
 
-CI/CD Pipelines
-------------------
+## Compiling the CSS
 
-The project utilizes **GitHub Actions** with a self-hosted runner located inside the private VPC. The runner is pre-configured via a startup script to include Docker, Terraform, Helm, and Java.
+There is a `petclinic.css` in `src/main/resources/static/resources/css`. It was generated from the `petclinic.scss` source, combined with the [Bootstrap](https://getbootstrap.com/) library. If you make changes to the `scss`, or upgrade Bootstrap, you will need to re-compile the CSS resources using the Maven profile "css", i.e. `./mvnw package -P css`. There is no build profile for Gradle to compile the CSS.
 
-### Dev Infrastructure Pipeline (dev-only-pipeline.yml)
+## Working with Petclinic in your IDE
 
-*   **Trigger:** Pushes to the dev branch or manual workflow\_dispatch.
-    
-*   **Jobs:**
-    
-    *   **Validate & Scan:** Runs terraform fmt, terraform validate, tflint, and tfsec to ensure code quality and security.
-        
-    *   **Plan:** Generates a speculative execution plan.
-        
-    *   **Apply:** Manual trigger required to apply changes to the Dev environment.
-        
-    *   **Destroy:** Manual trigger required to tear down resources.
-        
+### Prerequisites
 
-### Main Infrastructure Pipeline (infra-pipeline.yml)
+The following items should be installed in your system:
 
-*   **Trigger:** Pushes to the main branch.
-    
-*   **Protection:** Enforces that Production deployments can **only** occur from the main branch. If a prod deployment is attempted from another branch, it exits with an error.
-    
-*   **Workflow:** Similar to Dev, but targets the prod environment state and workspace.
+- Java 17 or newer (full JDK, not a JRE)
+- [Git command line tool](https://help.github.com/articles/set-up-git)
+- Your preferred IDE
+  - Eclipse with the m2e plugin. Note: when m2e is available, there is a m2 icon in `Help -> About` dialog. If m2e is
+  not there, follow the installation process [here](https://www.eclipse.org/m2e/)
+  - [Spring Tools Suite](https://spring.io/tools) (STS)
+  - [IntelliJ IDEA](https://www.jetbrains.com/idea/)
+  - [VS Code](https://code.visualstudio.com)
 
-### Google Cloud Platform 
-![GCP](./.github/assets/gke.png)
-    
-### Deployment Pipelines
+### Steps
 
-This repository utilizes GitHub Actions to automate the software delivery process. The workflows are located in `.github/workflows`:
+1. On the command line run:
 
-| Workflow | Trigger | Description |
-| :--- | :--- | :--- |
-| **PR Release** (`pr-release.yml`) | Pull Request | Runs on every PR. Performs unit tests, static code analysis, and security scanning (Trivy) to ensure code quality before merging. |
-| **Main Release** (`main-release.yml`) | Push to `main` | Runs when code is merged to main. bumps the Semantic Version, builds the Docker image, tags it with the new version, and pushes it to the Container Registry (GCR/Artifact Registry). |
-| **Manual Deploy** (`manual-deploy.yml`) | Manual Dispatch | A manual workflow to deploy a specific version of the application to the Kubernetes cluster using Helm. |
-## Tools & Technologies Used
+    ```bash
+    git clone https://github.com/spring-projects/spring-petclinic.git
+    ```
 
-| Category | Tool | Description |
-| :--- | :--- | :--- |
-| **IaC** | Terraform | Infrastructure provisioning (v1.14+). |
-| **State** | GCS | Remote backend with versioning enabled. |
-| **Container** | Docker | Application packaging and registry management. |
-| **Orchestration** | Kubernetes (GKE) | Container management with VPC-native networking. |
-| **Charts** | Helm | Deploying Nginx Ingress and Prometheus stack. |
-| **Security** | TFSec / TFLint | Static analysis for Terraform code. |
-| **Secrets** | Secret Manager | Secure storage for Database credentials and URLs. |
-| **CI/CD** | GitHub Actions | Automation pipelines running on self-hosted runners. |
+1. Inside Eclipse or STS:
 
-Monitoring & Middleware
---------------------------
+    Open the project via `File -> Import -> Maven -> Existing Maven project`, then select the root directory of the cloned repo.
 
-The modules/middleware module installs essential shared services into the cluster via Helm:
+    Then either build on the command line `./mvnw generate-resources` or use the Eclipse launcher (right-click on project and `Run As -> Maven install`) to generate the CSS. Run the application's main method by right-clicking on it and choosing `Run As -> Java Application`.
 
-1.  **Nginx Ingress Controller:** Managed via Helm, configured as a LoadBalancer (type: ClusterIP) with restricted source ranges.
-    
-2.  **Kube Prometheus Stack:** Deploys Prometheus and Grafana into the monitoring namespace for cluster metrics and visualization.
+1. Inside IntelliJ IDEA:
 
-![Monitoring](./.github/assets/monitoring-alerts.gif) 
+    In the main menu, choose `File -> Open` and select the Petclinic [pom.xml](pom.xml). Click on the `Open` button.
 
-Important Notes
-------------------
+    - CSS files are generated from the Maven build. You can build them on the command line `./mvnw generate-resources` or right-click on the `spring-petclinic` project then `Maven -> Generates sources and Update Folders`.
 
-*   **State Management:** The Terraform state is stored remotely in a GCS bucket.
-    
-*   **Security:** Public access to the database is disabled. The Cloud SQL instance only allows connections via Private Service Access (VPC Peering).
-    
-*   **SSH Access:** SSH access to the runner is restricted to IAP tunneling; 
-    
-*   **Cost:** This infrastructure creates real resources (GKE Cluster, Load Balancers, Cloud SQL). Remember to run the **Destroy** workflow.
+    - A run configuration named `PetClinicApplication` should have been created for you if you're using a recent Ultimate version. Otherwise, run the application by right-clicking on the `PetClinicApplication` main class and choosing `Run 'PetClinicApplication'`.
 
+1. Navigate to the Petclinic
+
+    Visit [http://localhost:8080](http://localhost:8080) in your browser.
+
+## Looking for something in particular?
+
+|Spring Boot Configuration | Class or Java property files  |
+|--------------------------|---|
+|The Main Class | [PetClinicApplication](https://github.com/spring-projects/spring-petclinic/blob/main/src/main/java/org/springframework/samples/petclinic/PetClinicApplication.java) |
+|Properties Files | [application.properties](https://github.com/spring-projects/spring-petclinic/blob/main/src/main/resources) |
+|Caching | [CacheConfiguration](https://github.com/spring-projects/spring-petclinic/blob/main/src/main/java/org/springframework/samples/petclinic/system/CacheConfiguration.java) |
+
+## Interesting Spring Petclinic branches and forks
+
+The Spring Petclinic "main" branch in the [spring-projects](https://github.com/spring-projects/spring-petclinic)
+GitHub org is the "canonical" implementation based on Spring Boot and Thymeleaf. There are
+[quite a few forks](https://spring-petclinic.github.io/docs/forks.html) in the GitHub org
+[spring-petclinic](https://github.com/spring-petclinic). If you are interested in using a different technology stack to implement the Pet Clinic, please join the community there.
+
+## Interaction with other open-source projects
+
+One of the best parts about working on the Spring Petclinic application is that we have the opportunity to work in direct contact with many Open Source projects. We found bugs/suggested improvements on various topics such as Spring, Spring Data, Bean Validation and even Eclipse! In many cases, they've been fixed/implemented in just a few days.
+Here is a list of them:
+
+| Name | Issue |
+|------|-------|
+| Spring JDBC: simplify usage of NamedParameterJdbcTemplate | [SPR-10256](https://github.com/spring-projects/spring-framework/issues/14889) and [SPR-10257](https://github.com/spring-projects/spring-framework/issues/14890) |
+| Bean Validation / Hibernate Validator: simplify Maven dependencies and backward compatibility |[HV-790](https://hibernate.atlassian.net/browse/HV-790) and [HV-792](https://hibernate.atlassian.net/browse/HV-792) |
+| Spring Data: provide more flexibility when working with JPQL queries | [DATAJPA-292](https://github.com/spring-projects/spring-data-jpa/issues/704) |
+
+## Contributing
+
+The [issue tracker](https://github.com/spring-projects/spring-petclinic/issues) is the preferred channel for bug reports, feature requests and submitting pull requests.
+
+For pull requests, editor preferences are available in the [editor config](.editorconfig) for easy use in common text editors. Read more and download plugins at <https://editorconfig.org>. All commits must include a __Signed-off-by__ trailer at the end of each commit message to indicate that the contributor agrees to the Developer Certificate of Origin.
+For additional details, please refer to the blog post [Hello DCO, Goodbye CLA: Simplifying Contributions to Spring](https://spring.io/blog/2025/01/06/hello-dco-goodbye-cla-simplifying-contributions-to-spring).
+
+## License
+
+The Spring PetClinic sample application is released under version 2.0 of the [Apache License](https://www.apache.org/licenses/LICENSE-2.0).

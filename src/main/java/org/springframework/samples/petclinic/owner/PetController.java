@@ -20,6 +20,7 @@ import java.util.Collection;
 import java.util.Objects;
 import java.util.Optional;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.ModelMap;
 import org.springframework.util.Assert;
@@ -34,7 +35,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 
 import jakarta.validation.Valid;
-import org.jspecify.annotations.Nullable;
 
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
@@ -73,8 +73,8 @@ class PetController {
 	}
 
 	@ModelAttribute("pet")
-	public @Nullable Pet findPet(@PathVariable("ownerId") int ownerId,
-			@PathVariable(name = "petId", required = false) @Nullable Integer petId) {
+	public Pet findPet(@PathVariable("ownerId") int ownerId,
+			@PathVariable(name = "petId", required = false) Integer petId) {
 
 		if (petId == null) {
 			return new Pet();
@@ -88,12 +88,13 @@ class PetController {
 
 	@InitBinder("owner")
 	public void initOwnerBinder(WebDataBinder dataBinder) {
-		dataBinder.setDisallowedFields("id");
+		dataBinder.setDisallowedFields("id", "*.id");
 	}
 
 	@InitBinder("pet")
 	public void initPetBinder(WebDataBinder dataBinder) {
 		dataBinder.setValidator(new PetValidator());
+		dataBinder.setDisallowedFields("id", "*.id");
 	}
 
 	@GetMapping("/pets/new")
@@ -107,8 +108,9 @@ class PetController {
 	public String processCreationForm(Owner owner, @Valid Pet pet, BindingResult result,
 			RedirectAttributes redirectAttributes) {
 
-		if (StringUtils.hasText(pet.getName()) && pet.isNew() && owner.getPet(pet.getName(), true) != null)
+		if (StringUtils.hasText(pet.getName()) && pet.isNew() && owner.getPet(pet.getName(), true) != null) {
 			result.rejectValue("name", "duplicate", "already exists");
+		}
 
 		LocalDate currentDate = LocalDate.now();
 		if (pet.getBirthDate() != null && pet.getBirthDate().isAfter(currentDate)) {
@@ -119,8 +121,17 @@ class PetController {
 			return VIEWS_PETS_CREATE_OR_UPDATE_FORM;
 		}
 
-		owner.addPet(pet);
-		this.owners.save(owner);
+		try {
+			owner.addPet(pet);
+			this.owners.saveAndFlush(owner);
+		}
+		catch (DataIntegrityViolationException ex) {
+			if (!isDuplicatePetNameViolation(ex)) {
+				throw ex;
+			}
+			result.rejectValue("name", "duplicate", "already exists");
+			return VIEWS_PETS_CREATE_OR_UPDATE_FORM;
+		}
 		redirectAttributes.addFlashAttribute("message", "New Pet has been Added");
 		return "redirect:/owners/{ownerId}";
 	}
@@ -153,7 +164,16 @@ class PetController {
 			return VIEWS_PETS_CREATE_OR_UPDATE_FORM;
 		}
 
-		updatePetDetails(owner, pet);
+		try {
+			updatePetDetails(owner, pet);
+		}
+		catch (DataIntegrityViolationException ex) {
+			if (!isDuplicatePetNameViolation(ex)) {
+				throw ex;
+			}
+			result.rejectValue("name", "duplicate", "already exists");
+			return VIEWS_PETS_CREATE_OR_UPDATE_FORM;
+		}
 		redirectAttributes.addFlashAttribute("message", "Pet details has been edited");
 		return "redirect:/owners/{ownerId}";
 	}
@@ -176,7 +196,12 @@ class PetController {
 		else {
 			owner.addPet(pet);
 		}
-		this.owners.save(owner);
+		this.owners.saveAndFlush(owner);
+	}
+
+	private boolean isDuplicatePetNameViolation(DataIntegrityViolationException ex) {
+		String message = ex.getMessage();
+		return message != null && message.toLowerCase().contains("unique_owner_pet_name");
 	}
 
 }
