@@ -99,7 +99,7 @@ jobs:
 
       # Security Scan
       - name: Trivy Image Scan
-        uses: aquasecurity/trivy-action@0.33.1
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           input: /tmp/release_image.tar
           format: 'table'
