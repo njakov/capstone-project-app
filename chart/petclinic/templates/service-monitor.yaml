@@ -1,15 +1,27 @@
+{{- if .Values.monitoring.serviceMonitor.enabled }}
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
   name: {{ include "petclinic.fullname" . }}
   labels:
+    # Selected by kube-prometheus-stack (release name = prometheus-community)
     release: prometheus-community
     {{- include "petclinic.labels" . | nindent 4 }}
 spec:
+  # job label becomes app.kubernetes.io/name from the Service (= petclinic)
+  jobLabel: app.kubernetes.io/name
+  namespaceSelector:
+    matchNames:
+      - {{ .Release.Namespace }}
   selector:
     matchLabels:
       {{- include "petclinic.selectorLabels" . | nindent 6 }}
   endpoints:
+    # Primary cluster scrape path: Spring Actuator Micrometer (port 8080 via Service)
+    # JMX agent on :9093 is optional/local only — not exposed on the Service.
     - port: http-web
       path: /actuator/prometheus
+      scheme: http
       interval: 15s
+      scrapeTimeout: 10s
+{{- end }}

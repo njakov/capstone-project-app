@@ -1,0 +1,32 @@
+name: Crane push tar
+description: Push a Kaniko-built image tarball to one or more registry tags with crane.
+
+inputs:
+  tar-path:
+    description: Path to the image tarball
+    required: false
+    default: "/tmp/kaniko-image.tar"
+  destinations:
+    description: Newline-separated image:tag destinations
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Push tarball with crane
+      shell: bash
+      run: |
+        set -euo pipefail
+        if ! command -v crane >/dev/null 2>&1; then
+          echo "crane not found on PATH; run kaniko-build first or install crane" >&2
+          exit 1
+        fi
+
+        while IFS= read -r DEST; do
+          DEST="$(echo "${DEST}" | xargs)"
+          [[ -z "${DEST}" ]] && continue
+          echo "Pushing ${DEST}"
+          crane push "${{ inputs.tar-path }}" "${DEST}"
+        done <<EOF
+        ${{ inputs.destinations }}
+        EOF

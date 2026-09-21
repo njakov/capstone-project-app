@@ -1,3 +1,6 @@
+# LOCAL DEMO ONLY — do not apply to GKE / capstone clusters.
+# Production secrets come from Secret Manager via the Helm SecretProviderClass.
+# Plaintext credentials below are intentional sample values for local kind/minikube experiments.
 ---
 apiVersion: v1
 kind: Secret

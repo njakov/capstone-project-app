@@ -6,75 +6,80 @@ on:
   workflow_dispatch:
 
 env:
-  PROJECT_ID: "project-17c62de2-ec01-476d-908"
-  REGION: "europe-west1"
+  PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+  REGION: ${{ vars.GCP_REGION }}
   REPO_NAME: "petclinic-repo-dev"
+  IMAGE_NAME: "petclinic"
 
 jobs:
   pr-lifecycle:
-    runs-on: [self-hosted, dev]
+    # ARC scale set name (GKE WI → github-app-runner-sa-dev); no Docker socket
+    runs-on: petclinic-arc-dev
     permissions:
       contents: read
-      id-token: write
 
     steps:
       - uses: actions/checkout@v6
 
-      # Calculate Short SHA (7 letters)
+      - name: Require GCP project vars
+        run: |
+          if [ -z "${{ vars.GCP_PROJECT_ID }}" ] || [ -z "${{ vars.GCP_REGION }}" ]; then
+            echo "::error::Set repository variables GCP_PROJECT_ID and GCP_REGION"
+            exit 1
+          fi
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+
+      - name: Set up gcloud (ADC via GKE Workload Identity)
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+
       - name: Set Short SHA
         id: vars
         run: echo "sha_short=$(git rev-parse --short=7 HEAD)" >> $GITHUB_OUTPUT
 
-      # Static Analysis
       - name: Static Analysis (Checkstyle)
         run: ./mvnw checkstyle:check
 
-      # Unit Tests
       - name: Run Unit Tests
         run: ./mvnw test
 
-      # Package
       - name: Package Application
         run: ./mvnw package -DskipTests
 
-      - name: Prepare Docker Files
-        run: |
-          # 1. Move and rename the App JAR
-          mv target/*.jar spring-petclinic.jar
-          
-          # 2. Download the Prometheus JMX Agent
-          curl -L https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/0.20.0/jmx_prometheus_javaagent-0.20.0.jar -o jmx.jar
-          
-          # 3. Verify all files exist before building
-          ls -l spring-petclinic.jar jmx.jar config.yaml
+      - name: Prepare image context
+        uses: ./.github/actions/prepare-image-context
 
-      - name: 'Docker Auth'
-        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
-
-      # Build Docker Image
-      - name: Build Docker Image
-        uses: docker/build-push-action@v6.18.0
+      - name: Registry auth (WI token)
+        uses: ./.github/actions/registry-auth
         with:
-          context: .
-          load: true
-          tags: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/petclinic:${{ steps.vars.outputs.sha_short }}
+          registry: ${{ env.REGION }}-docker.pkg.dev
 
-      # Security Scan (Trivy on Image)
+      - name: Build image with Kaniko
+        uses: ./.github/actions/kaniko-build
+        with:
+          destination: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/${{ env.IMAGE_NAME }}:${{ steps.vars.outputs.sha_short }}
+          tar-path: /tmp/pr_image.tar
+
       - name: Trivy Image Scan
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/petclinic:${{ steps.vars.outputs.sha_short }}
-          format: 'table'
-          exit-code: '1' # Fail pipeline if CRITICAL/HIGH issues found
+          input: /tmp/pr_image.tar
+          format: "table"
+          exit-code: "1"
           ignore-unfixed: true
-          severity: 'CRITICAL,HIGH'
+          severity: "CRITICAL,HIGH"
 
-      # Push Image (SHA + Latest)
-      - name: Push Docker Image
-        uses: docker/build-push-action@v6.18.0
+      - name: Push image to dev registry
+        uses: ./.github/actions/crane-push-tar
         with:
-          context: .
-          push: true
-          tags: |
-            ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/petclinic:${{ steps.vars.outputs.sha_short }}
-            ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/petclinic:latest
+          tar-path: /tmp/pr_image.tar
+          destinations: |
+            ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/${{ env.IMAGE_NAME }}:${{ steps.vars.outputs.sha_short }}
+            ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/${{ env.IMAGE_NAME }}:latest

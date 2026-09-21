@@ -3,6 +3,85 @@
 This repository extends the official [Spring PetClinic](https://github.com/spring-projects/spring-petclinic)
 application with container images, Helm deployments, and GCP delivery workflows.
 
+## Capstone delivery (Helm / GKE)
+
+Production path for this fork:
+
+| Piece | Location |
+|-------|----------|
+| Dockerfile | [`Dockerfile`](Dockerfile) at repo root (Temurin 17 JRE, non-root `petclinic` user) |
+| Helm chart | [`chart/petclinic`](chart/petclinic) |
+| Env values | `values-dev.yaml` / `values-prod.yaml` |
+| PR / release CI | [`.github/workflows/pr-release.yml`](.github/workflows/pr-release.yml), [`.github/workflows/main-release.yml`](.github/workflows/main-release.yml) |
+| Deploy workflow | [`.github/workflows/manual-deploy.yml`](.github/workflows/manual-deploy.yml) |
+
+App resources deploy to the **`petclinic`** namespace (not `default`). That namespace must match the Workload Identity binding in the infra repo (`petclinic/petclinic` → GCP app SA).
+
+### CI runners (ARC + Kaniko)
+
+App workflows run on **Actions Runner Controller** scale sets in the env GKE cluster (`petclinic-arc-dev` / `petclinic-arc-prod`), not on long-lived GCE VMs.
+
+| Workflow | `runs-on` | Registry |
+|----------|-----------|----------|
+| PR gatekeeper | `petclinic-arc-dev` | **dev** Artifact Registry only |
+| Main release | `petclinic-arc-prod` | **prod** Artifact Registry only |
+| Manual deploy | `petclinic-arc-${{ environment }}` | reads the matching env registry |
+
+**Trust model:** runner pods use GKE Workload Identity (`arc-runners` K8s SA → `github-app-runner-sa-{env}`). There is no GitHub→GCP OIDC in these workflows (`id-token: write` is intentionally absent). Images are built with **Kaniko** (no Docker socket / DinD); Trivy scans the image tar before `crane` push.
+
+### GitHub Actions variables
+
+Project identifiers are **not** secrets. Set these as repository (or environment) **Actions variables** under Settings → Secrets and variables → Actions → Variables:
+
+| Variable | Used by | Example |
+|----------|---------|---------|
+| `GCP_PROJECT_ID` | PR / main / manual-deploy | `my-gcp-project` |
+| `GCP_REGION` | PR / main / manual-deploy | `europe-west1` |
+
+Workflows fail fast if either variable is empty. Keep authenticators (tokens, PEMs, passwords) as secrets — not these IDs.
+
+Committed `values-dev.yaml` / `values-prod.yaml` hold only env-specific non-project settings (replicas, ingress host, `environment` label, K8s SA **name**). Project-bound Helm fields are injected at deploy time from the variables above (deterministic names matching the infra modules):
+
+- `image.repository` → `{REGION}-docker.pkg.dev/{PROJECT_ID}/petclinic-repo-{env}/petclinic`
+- `googleProjectId` → `$GCP_PROJECT_ID`
+- `serviceAccount.gcpEmail` → `petclinic-sa-{env}@$GCP_PROJECT_ID.iam.gserviceaccount.com`
+- `cloudSql.instanceConnectionName` → `$GCP_PROJECT_ID:$GCP_REGION:petclinic-db-{env}`
+
+`manual-deploy.yml` passes those via `--set`. Chart defaults leave them empty so a render without `--set` fails closed.
+
+```bash
+# Example (credentials and cluster already configured)
+PROJECT_ID=<GCP_PROJECT_ID>
+REGION=<GCP_REGION>
+ENV=dev
+helm upgrade --install petclinic ./chart/petclinic \
+  --namespace petclinic \
+  --create-namespace \
+  --values ./chart/petclinic/values-${ENV}.yaml \
+  --set image.repository=${REGION}-docker.pkg.dev/${PROJECT_ID}/petclinic-repo-${ENV}/petclinic \
+  --set image.tag=<tag> \
+  --set googleProjectId=${PROJECT_ID} \
+  --set serviceAccount.gcpEmail=petclinic-sa-${ENV}@${PROJECT_ID}.iam.gserviceaccount.com \
+  --set cloudSql.instanceConnectionName=${PROJECT_ID}:${REGION}:petclinic-db-${ENV} \
+  --wait
+```
+
+External access is via the **ingress-nginx LoadBalancer** (source-restricted in infra), not the app ClusterIP Service. Actuator is limited to `health`, `info`, and `prometheus`; probes use `/actuator/health/liveness` and `/actuator/health/readiness`.
+
+### Monitoring (Prometheus / Grafana)
+
+**Primary cluster path:** the chart’s `ServiceMonitor` scrapes Service port `http-web` → `/actuator/prometheus` (Micrometer). Prometheus job label is `petclinic` (`jobLabel: app.kubernetes.io/name`). Alerts live in `PrometheusRule` (e.g. `PetclinicInstanceDown`); the Micrometer JVM dashboard ConfigMap is labeled `grafana_dashboard: "1"` for the Grafana sidecar.
+
+**Non-primary:** the image still runs the JMX Prometheus Java agent on container port `9093` for local/debug use. That port is **not** on the Kubernetes Service and is **not** scraped in-cluster.
+
+Infra stack details (retention, Grafana password, demo checklist): [capstone-project-infra docs/monitoring.md](https://github.com/njakov/capstone-project-infra/blob/main/docs/monitoring.md).
+
+Legacy manifests under [`k8s/`](k8s/) are **local demos only** — do not apply them to the GKE clusters.
+
+Infrastructure (GKE, Cloud SQL, WI, Ingress, monitoring) lives in [capstone-project-infra](https://github.com/njakov/capstone-project-infra).
+
+---
+
 ## Understanding the Spring Petclinic application with a few diagrams
 
 See the presentation here:
@@ -43,7 +122,17 @@ See below for more details.
 
 ## Building a Container
 
-There is no `Dockerfile` in this project. You can build a container image (if you have a docker daemon) using the Spring Boot build plugin:
+This fork ships a root [`Dockerfile`](Dockerfile) used by the CI pipelines (JAR + checksum-pinned JMX agent). Build after assembling the JAR:
+
+```bash
+./mvnw -DskipTests package
+# CI stages spring-petclinic.jar + jmx.jar before the image build
+docker build -t petclinic:local .
+```
+
+CI on ARC uses Kaniko instead of `docker build` (same Dockerfile).
+
+You can also build a container image with the Spring Boot build plugin (if you have a docker daemon):
 
 ```bash
 ./mvnw spring-boot:build-image

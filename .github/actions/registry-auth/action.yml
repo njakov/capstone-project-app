@@ -1,0 +1,27 @@
+name: Artifact Registry auth
+description: Write a Docker config.json from the GKE Workload Identity token (no GitHub OIDC).
+
+inputs:
+  registry:
+    description: Registry host (e.g. europe-west1-docker.pkg.dev)
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Write Docker config for Artifact Registry
+      shell: bash
+      run: |
+        set -euo pipefail
+        mkdir -p "${HOME}/.docker"
+        TOKEN="$(gcloud auth print-access-token)"
+        AUTH="$(printf '%s' "oauth2accesstoken:${TOKEN}" | base64 | tr -d '\n')"
+        REGISTRY='${{ inputs.registry }}'
+        printf '%s\n' "{
+          \"auths\": {
+            \"${REGISTRY}\": {
+              \"auth\": \"${AUTH}\"
+            }
+          }
+        }" > "${HOME}/.docker/config.json"
+        echo "DOCKER_CONFIG=${HOME}/.docker" >> "${GITHUB_ENV}"

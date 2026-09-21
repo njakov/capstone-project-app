@@ -1,7 +1,7 @@
 # ---------------------------------------------------------------------------
-# Base Image: OpenJDK 25 EA (Slim)
+# Base Image: Eclipse Temurin 17 JRE (matches pom.xml java.version)
 # ---------------------------------------------------------------------------
-FROM openjdk:25-ea-21-jdk-slim
+FROM eclipse-temurin:17-jre-jammy
 
 RUN apt-get update && \
     apt-get upgrade -y && \

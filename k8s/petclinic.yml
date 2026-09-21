@@ -1,3 +1,5 @@
+# LOCAL DEMO ONLY — do not apply to GKE / capstone clusters.
+# Prefer the Helm chart under chart/petclinic for real deployments.
 ---
 apiVersion: v1
 kind: Service

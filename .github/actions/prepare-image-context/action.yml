@@ -1,0 +1,27 @@
+name: Prepare image context
+description: Stage the app JAR and checksum-pinned JMX agent for the Dockerfile COPY steps.
+
+inputs:
+  jmx-version:
+    description: jmx_prometheus_javaagent version
+    required: false
+    default: "0.20.0"
+  jmx-sha256:
+    description: Expected SHA-256 of the JMX agent JAR
+    required: false
+    default: "8b67ed40485d475648c36d11d21464b484406f85faf912b3363f71a6a7861320"
+
+runs:
+  using: composite
+  steps:
+    - name: Stage JAR and pin JMX agent
+      shell: bash
+      run: |
+        set -euo pipefail
+        mv target/*.jar spring-petclinic.jar
+
+        JMX_URL="https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/${{ inputs.jmx-version }}/jmx_prometheus_javaagent-${{ inputs.jmx-version }}.jar"
+        curl -fsSL "$JMX_URL" -o jmx.jar
+        echo "${{ inputs.jmx-sha256 }}  jmx.jar" | sha256sum -c -
+
+        ls -l spring-petclinic.jar jmx.jar config.yaml

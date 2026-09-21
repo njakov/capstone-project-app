@@ -1,22 +1,33 @@
 # chart/petclinic/values.yaml
+# Deploy into the petclinic namespace (paired with infra Workload Identity binding):
+#   helm upgrade --install petclinic ./chart/petclinic \
+#     --namespace petclinic --create-namespace \
+#     --values ./chart/petclinic/values-<env>.yaml
 
 # 1. Scaling Defaults
 replicaCount: 1
 
-# 2. Image Configuration
+# 2. Image Configuration (repository/tag injected at deploy via --set)
 image:
-  repository: "gcr.io/google-samples/hello-app" # Placeholder
+  repository: ""
   pullPolicy: IfNotPresent
   tag: ""
 
-# 3. Application Config
+# 3. Application Config (instanceConnectionName injected at deploy via --set)
 cloudSql:
   instanceConnectionName: ""
 
-# 4. Service Account
+# 4. Service Account (WI member: petclinic/petclinic; gcpEmail injected at deploy)
 serviceAccount:
   create: true
-  gcpEmail: "" 
+  name: petclinic
+  gcpEmail: ""
+
+# GCP project ID for Secret Manager paths (injected at deploy via --set)
+googleProjectId: ""
+
+# Environment label for secret naming (overridden in values-<env>.yaml)
+environment: ""
 
 service:
   type: ClusterIP
@@ -26,5 +37,52 @@ ingress:
   enabled: false
   className: "nginx"
   host: "localhost"
-  
-resources: {}
+
+# Aligns with Dockerfile USER petclinic (non-root system user)
+podSecurityContext:
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  runAsNonRoot: true
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: "1"
+    memory: 1Gi
+
+# Metrics / monitoring (cluster path — see ServiceMonitor)
+# Primary: Prometheus scrapes Service port http-web → /actuator/prometheus
+# Optional: JMX agent listens on container :9093 for local/debug use; not on the Service.
+monitoring:
+  serviceMonitor:
+    enabled: true
+  prometheusRules:
+    enabled: true
+  dashboard:
+    enabled: true
+
+# HTTP probes against Spring Actuator (requires health,info,prometheus exposure)
+probes:
+  liveness:
+    enabled: true
+    path: /actuator/health/liveness
+    initialDelaySeconds: 60
+    periodSeconds: 15
+    timeoutSeconds: 5
+    failureThreshold: 3
+  readiness:
+    enabled: true
+    path: /actuator/health/readiness
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3

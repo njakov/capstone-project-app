@@ -6,44 +6,60 @@ on:
   workflow_dispatch:
 
 env:
-  PROJECT_ID: "project-17c62de2-ec01-476d-908"
-  REGION: "europe-west1"
-  REPO_NAME_DEV: "petclinic-repo-dev"
+  PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+  REGION: ${{ vars.GCP_REGION }}
   REPO_NAME_PROD: "petclinic-repo-prod"
   IMAGE_NAME: "petclinic"
 
 jobs:
   build-and-release:
-    runs-on: [self-hosted, prod]
+    # ARC scale set name (GKE WI → github-app-runner-sa-prod); no Docker socket
+    runs-on: petclinic-arc-prod
     permissions:
-      contents: write 
-      id-token: write 
+      contents: write
 
     outputs:
       new_version: ${{ steps.semver.outputs.new_version }}
 
     steps:
-      - name: 🧹 Clean Workspace
-        run: |
-          docker run --rm -v "$GITHUB_WORKSPACE:/workspace" -w /workspace alpine sh -c "rm -rf ./* ./.git"
+      - name: Clean Workspace
+        run: find "${GITHUB_WORKSPACE}" -mindepth 1 -delete 2>/dev/null || true
+
       - name: Checkout Code
         uses: actions/checkout@v6
 
-      # 1. Setup Python & Dependencies
+      - name: Require GCP project vars
+        run: |
+          if [ -z "${{ vars.GCP_PROJECT_ID }}" ] || [ -z "${{ vars.GCP_REGION }}" ]; then
+            echo "::error::Set repository variables GCP_PROJECT_ID and GCP_REGION"
+            exit 1
+          fi
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+
+      - name: Set up gcloud (ADC via GKE Workload Identity)
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+
       - name: Set up Python
         uses: actions/setup-python@v6.1.0
         with:
-          python-version: '3.x'
+          python-version: "3.x"
 
       - name: Install SemVer
         run: pip install semver
 
-      # 2. Get Latest Tag (Action)
       - name: Get Latest Tag
         uses: actions-ecosystem/action-get-latest-tag@v1.6.0
         id: get-latest-tag
 
-      # 3. Calculate Next Version (Python Script)
+      # Tag is pushed only after tests + Trivy pass
       - name: Calculate Next Version
         id: semver
         run: |
@@ -53,68 +69,48 @@ jobs:
           echo "Next: $NEW_TAG"
           echo "new_version=$NEW_TAG" >> $GITHUB_OUTPUT
 
-      # 4. Push New Tag (Action)
+      - name: Static Analysis (Checkstyle)
+        run: ./mvnw checkstyle:check
+
+      - name: Run Unit Tests
+        run: ./mvnw test
+
+      - name: Package Application
+        run: ./mvnw package -DskipTests
+
+      - name: Prepare image context
+        uses: ./.github/actions/prepare-image-context
+
+      - name: Registry auth (WI token)
+        uses: ./.github/actions/registry-auth
+        with:
+          registry: ${{ env.REGION }}-docker.pkg.dev
+
+      - name: Build image with Kaniko
+        uses: ./.github/actions/kaniko-build
+        with:
+          destination: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME_PROD }}/${{ env.IMAGE_NAME }}:${{ steps.semver.outputs.new_version }}
+          tar-path: /tmp/release_image.tar
+
+      - name: Trivy Image Scan
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          input: /tmp/release_image.tar
+          format: "table"
+          exit-code: "1"
+          ignore-unfixed: true
+          severity: "CRITICAL,HIGH"
+
       - name: Push New Tag
         uses: actions-ecosystem/action-push-tag@v1
         with:
           tag: ${{ steps.semver.outputs.new_version }}
           message: "Release ${{ steps.semver.outputs.new_version }}"
 
-        # Static Analysis
-      - name: Static Analysis (Checkstyle)
-        run: ./mvnw checkstyle:check
-
-      # Unit Tests
-      - name: Run Unit Tests
-        run: ./mvnw test
-
-      # Package
-      - name: Package Application
-        run: ./mvnw package -DskipTests
-
-      - name: Prepare Docker Files
-        run: |
-          # 1. Move and rename the App JAR
-          mv target/*.jar spring-petclinic.jar
-          
-          # 2. Download the Prometheus JMX Agent
-          curl -L https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/0.20.0/jmx_prometheus_javaagent-0.20.0.jar -o jmx.jar
-          
-          # 3. Verify all files exist before building
-          ls -l spring-petclinic.jar jmx.jar config.yaml
-
-      - name: 'Docker Auth'
-        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
-
-      # Build and Export to Tar
-      - name: Build Image (Export)
-        uses: docker/build-push-action@v6.18.0
+      - name: Push image to prod registry
+        uses: ./.github/actions/crane-push-tar
         with:
-          context: .
-          # Save to tar file to avoid Docker Socket version issues during scan
-          outputs: type=docker,dest=/tmp/release_image.tar
-          tags: |
+          tar-path: /tmp/release_image.tar
+          destinations: |
             ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME_PROD }}/${{ env.IMAGE_NAME }}:${{ steps.semver.outputs.new_version }}
             ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME_PROD }}/${{ env.IMAGE_NAME }}:latest
-
-      # Security Scan
-      - name: Trivy Image Scan
-        uses: aquasecurity/trivy-action@v0.36.0
-        with:
-          input: /tmp/release_image.tar
-          format: 'table'
-          exit-code: '1'
-          ignore-unfixed: true
-          severity: 'CRITICAL,HIGH'
-
-      - name: Push Image to Registry
-        uses: docker/build-push-action@v6.18.0
-        with:
-          context: .
-          push: true
-          # Push to BOTH Repositories (Dev & Prod) with SemVer AND Latest tags
-          tags: |
-            ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME_PROD }}/${{ env.IMAGE_NAME }}:${{ steps.semver.outputs.new_version }}
-            ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME_PROD }}/${{ env.IMAGE_NAME }}:latest
-            ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME_DEV }}/${{ env.IMAGE_NAME }}:${{ steps.semver.outputs.new_version }}
-            ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME_DEV }}/${{ env.IMAGE_NAME }}:latest

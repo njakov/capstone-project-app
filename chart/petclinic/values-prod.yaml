@@ -1,18 +1,14 @@
+# Namespace: petclinic (set via helm --namespace; WI = petclinic/petclinic)
+# Project-specific fields (image.repository, googleProjectId, cloudSql.instanceConnectionName,
+# serviceAccount.gcpEmail) are injected at deploy time via --set / GitHub Actions vars.
 replicaCount: 2
 
-cloudSql:
-  instanceConnectionName: "project-17c62de2-ec01-476d-908:europe-west1:petclinic-db-prod"
-
 serviceAccount:
-  gcpEmail: "petclinic-sa-prod@project-17c62de2-ec01-476d-908.iam.gserviceaccount.com"
+  name: petclinic
 
 ingress:
   enabled: true
   className: "nginx"
   host: "petclinic.internal"
 
-image:
-  repository: "europe-west1-docker.pkg.dev/project-17c62de2-ec01-476d-908/petclinic-repo-prod/petclinic"
-
-googleProjectId: "project-17c62de2-ec01-476d-908"
 environment: "prod"
