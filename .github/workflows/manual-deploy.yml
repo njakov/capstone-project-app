@@ -114,8 +114,14 @@ jobs:
           TARGET_ENV: ${{ inputs.environment }}
         run: |
           echo "Deploying ${{ inputs.version }} to $TARGET_ENV"
-          gcloud container clusters get-credentials petclinic-gke-$TARGET_ENV \
-            --region ${{ env.REGION }} --project ${{ env.PROJECT_ID }}
+          # Dev cluster is zonal. Prod cluster is regional. Terraform creates the namespace.
+          if [ "$TARGET_ENV" = "prod" ]; then
+            gcloud container clusters get-credentials "petclinic-gke-${TARGET_ENV}" \
+              --region "${{ env.REGION }}" --project "${{ env.PROJECT_ID }}"
+          else
+            gcloud container clusters get-credentials "petclinic-gke-${TARGET_ENV}" \
+              --zone "europe-west1-c" --project "${{ env.PROJECT_ID }}"
+          fi
 
           FULL_IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/$REPO_NAME/${{ env.IMAGE_NAME }}"
           SA_EMAIL="petclinic-sa-${TARGET_ENV}@${{ env.PROJECT_ID }}.iam.gserviceaccount.com"
@@ -124,7 +130,6 @@ jobs:
 
           helm upgrade --install petclinic ./chart/petclinic \
             --namespace petclinic \
-            --create-namespace \
             --values ./chart/petclinic/values-${TARGET_ENV}.yaml \
             --set image.repository="$FULL_IMAGE" \
             --set image.tag="${{ inputs.version }}" \
