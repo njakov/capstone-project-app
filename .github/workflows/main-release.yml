@@ -6,8 +6,6 @@ on:
   workflow_dispatch:
 
 env:
-  PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
-  REGION: ${{ vars.GCP_REGION }}
   REPO_NAME_PROD: "petclinic-repo-prod"
   IMAGE_NAME: "petclinic"
 
@@ -15,6 +13,10 @@ jobs:
   build-and-release:
     # ARC scale set name (GKE WI → github-app-runner-sa-prod); no Docker socket
     runs-on: petclinic-arc-prod
+    environment: prod
+    env:
+      PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+      REGION: ${{ vars.GCP_REGION }}
     permissions:
       contents: write
 
@@ -30,8 +32,8 @@ jobs:
 
       - name: Require GCP project vars
         run: |
-          if [ -z "${{ vars.GCP_PROJECT_ID }}" ] || [ -z "${{ vars.GCP_REGION }}" ]; then
-            echo "::error::Set repository variables GCP_PROJECT_ID and GCP_REGION"
+          if [ -z "$PROJECT_ID" ] || [ -z "$REGION" ]; then
+            echo "::error::Set GCP_PROJECT_ID and GCP_REGION on the GitHub Environment 'prod' (Settings → Environments → prod). Repo-level vars are not used for two GCP projects."
             exit 1
           fi
 

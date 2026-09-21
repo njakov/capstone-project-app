@@ -31,14 +31,14 @@ App workflows run on **Actions Runner Controller** scale sets in the env GKE clu
 
 ### GitHub Actions variables
 
-Project identifiers are **not** secrets. Set these as repository (or environment) **Actions variables** under Settings → Secrets and variables → Actions → Variables:
+Project identifiers are **not** secrets. Dev and prod are different GCP projects, so set `GCP_PROJECT_ID` and `GCP_REGION` on the GitHub Environments named `dev` and `prod` (Settings → Environments), not as a single repository variable.
 
-| Variable | Used by | Example |
-|----------|---------|---------|
-| `GCP_PROJECT_ID` | PR / main / manual-deploy | `my-gcp-project` |
-| `GCP_REGION` | PR / main / manual-deploy | `europe-west1` |
+| Variable | `dev` Environment | `prod` Environment |
+|----------|-------------------|--------------------|
+| `GCP_PROJECT_ID` | Dev GCP project ID | Prod GCP project ID |
+| `GCP_REGION` | `europe-west1` | `europe-west1` |
 
-Workflows fail fast if either variable is empty. Keep authenticators (tokens, PEMs, passwords) as secrets — not these IDs.
+PR Gatekeeper uses Environment `dev`. Main release uses `prod`. Manual deploy uses the Environment you select. Workflows fail fast if either variable is empty on that Environment. Keep authenticators (tokens, PEMs, passwords) as secrets — not these IDs.
 
 Committed `values-dev.yaml` / `values-prod.yaml` hold only env-specific non-project settings (replicas, ingress host, `environment` label, K8s SA **name**). Project-bound Helm fields are injected at deploy time from the variables above (deterministic names matching the infra modules):
 
