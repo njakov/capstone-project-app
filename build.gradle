@@ -24,6 +24,8 @@ repositories {
   mavenCentral()
 }
 
+// Boot 4.1.1 manages Tomcat 11.0.24 (CVE-2026-65182, CVE-2026-65905, CVE-2026-68525). Remove once Boot manages 11.0.26+.
+ext['tomcat.version'] = '11.0.26'
 ext.checkstyleVersion = "12.3.1"
 ext.springJavaformatCheckstyleVersion = "0.0.47"
 ext.webjarsLocatorLiteVersion = "1.1.3"
