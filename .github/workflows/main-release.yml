@@ -88,8 +88,8 @@ jobs:
         with:
           registry: ${{ env.REGION }}-docker.pkg.dev
 
-      - name: Build image with Kaniko
-        uses: ./.github/actions/kaniko-build
+      - name: Build image with BuildKit
+        uses: ./.github/actions/buildkit-build
         with:
           destination: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME_PROD }}/${{ env.IMAGE_NAME }}:${{ steps.semver.outputs.new_version }}
           tar-path: /tmp/release_image.tar

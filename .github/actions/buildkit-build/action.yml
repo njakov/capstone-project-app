@@ -1,0 +1,127 @@
+name: BuildKit build
+description: Build a container image by handing the Dockerfile to the rootless BuildKit sidecar (no Docker daemon / socket).
+
+inputs:
+  context:
+    description: Build context directory
+    required: false
+    default: "."
+  dockerfile:
+    description: Path to Dockerfile
+    required: false
+    default: "Dockerfile"
+  destination:
+    description: Primary image reference (used for naming inside the tar)
+    required: true
+  tar-path:
+    description: Path to write the image tarball
+    required: false
+    default: "/tmp/image.tar"
+  crane-version:
+    description: go-containerregistry (crane) release tag
+    required: false
+    default: "v0.20.2"
+
+runs:
+  using: composite
+  steps:
+    - name: Install crane
+      shell: bash
+      run: |
+        set -euo pipefail
+        TOOLS_DIR="${RUNNER_TEMP}/buildkit-tools"
+        mkdir -p "${TOOLS_DIR}/bin"
+
+        ARCH="$(uname -m)"
+        case "${ARCH}" in
+          x86_64|amd64) CRANE_ARCH="x86_64" ;;
+          aarch64|arm64) CRANE_ARCH="arm64" ;;
+          *) echo "Unsupported arch: ${ARCH}" >&2; exit 1 ;;
+        esac
+
+        curl -fsSL \
+          "https://github.com/google/go-containerregistry/releases/download/${{ inputs.crane-version }}/go-containerregistry_Linux_${CRANE_ARCH}.tar.gz" \
+          | tar -xz -C "${TOOLS_DIR}/bin" crane
+
+        echo "${TOOLS_DIR}/bin" >> "${GITHUB_PATH}"
+
+    - name: Build image tarball with BuildKit sidecar
+      shell: bash
+      run: |
+        set -euo pipefail
+        if [[ ! -d /buildkit-work ]]; then
+          echo "::error::BuildKit sidecar mount /buildkit-work is missing. Apply the infra runner pod change before this workflow." >&2
+          exit 1
+        fi
+
+        CONTEXT_DIR="$(cd "${{ inputs.context }}" && pwd)"
+        if [[ "${{ inputs.dockerfile }}" = /* ]]; then
+          DOCKERFILE_SRC="${{ inputs.dockerfile }}"
+        else
+          DOCKERFILE_SRC="${CONTEXT_DIR}/${{ inputs.dockerfile }}"
+        fi
+        if [[ ! -f "${DOCKERFILE_SRC}" ]]; then
+          echo "::error::Dockerfile not found: ${DOCKERFILE_SRC}" >&2
+          exit 1
+        fi
+
+        rm -rf /buildkit-work/context /buildkit-work/image.tar /buildkit-work/build.log /buildkit-work/requests
+        mkdir -p /buildkit-work/requests /buildkit-work/context
+        # The sidecar is UID 1000. It must unlink the request and write the log, tar, and exit file.
+        chmod 777 /buildkit-work /buildkit-work/requests
+        : > /buildkit-work/build.log
+        chmod 666 /buildkit-work/build.log
+        cp -a "${CONTEXT_DIR}/." /buildkit-work/context/
+
+        # Same mount path in the runner and the sidecar. Do not copy DOCKER_CONFIG:
+        # the base image is public, and crane push uses the runner's registry auth.
+        if [[ "${{ inputs.dockerfile }}" = /* ]]; then
+          cp "${DOCKERFILE_SRC}" /buildkit-work/context/Dockerfile.sidecar
+          DOCKERFILE_IN_SIDECAR="/buildkit-work/context/Dockerfile.sidecar"
+        else
+          DOCKERFILE_IN_SIDECAR="/buildkit-work/context/${{ inputs.dockerfile }}"
+        fi
+        if [[ ! -f "${DOCKERFILE_IN_SIDECAR}" ]]; then
+          echo "::error::Dockerfile not in the shared build context: ${DOCKERFILE_IN_SIDECAR}" >&2
+          exit 1
+        fi
+        chmod -R a+rX /buildkit-work/context
+
+        printf '%s\n' \
+          "CONTEXT=/buildkit-work/context" \
+          "DOCKERFILE=${DOCKERFILE_IN_SIDECAR}" \
+          "DESTINATION=${{ inputs.destination }}" \
+          "TAR_PATH=/buildkit-work/image.tar" \
+          > /buildkit-work/requests/build.req.tmp
+
+        tail -n +1 -F /buildkit-work/build.log &
+        TAIL_PID=$!
+        cleanup() {
+          kill "${TAIL_PID}" >/dev/null 2>&1 || true
+          wait "${TAIL_PID}" 2>/dev/null || true
+        }
+        trap cleanup EXIT
+
+        mv /buildkit-work/requests/build.req.tmp /buildkit-work/requests/build.req
+
+        DEADLINE=$((SECONDS + 900))
+        while [[ ! -f /buildkit-work/requests/build.exit ]]; do
+          if (( SECONDS >= DEADLINE )); then
+            echo "::error::Timed out waiting for the BuildKit sidecar" >&2
+            exit 1
+          fi
+          sleep 1
+        done
+        sleep 1
+
+        STATUS="$(tr -d '[:space:]' < /buildkit-work/requests/build.exit)"
+        if [[ "${STATUS}" != "0" ]]; then
+          echo "::error::BuildKit sidecar exited ${STATUS}" >&2
+          exit "${STATUS}"
+        fi
+        if [[ ! -s /buildkit-work/image.tar ]]; then
+          echo "::error::BuildKit sidecar did not write /buildkit-work/image.tar" >&2
+          exit 1
+        fi
+        cp /buildkit-work/image.tar "${{ inputs.tar-path }}"
+        ls -lh "${{ inputs.tar-path }}"

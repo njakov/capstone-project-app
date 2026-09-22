@@ -13,21 +13,23 @@ Production path for this fork:
 | Helm chart | [`chart/petclinic`](chart/petclinic) |
 | Env values | `values-dev.yaml` / `values-prod.yaml` |
 | PR / release CI | [`.github/workflows/pr-release.yml`](.github/workflows/pr-release.yml), [`.github/workflows/main-release.yml`](.github/workflows/main-release.yml) |
-| Deploy workflow | [`.github/workflows/manual-deploy.yml`](.github/workflows/manual-deploy.yml) |
+| Deploy to dev | [`.github/workflows/deploy-dev.yml`](.github/workflows/deploy-dev.yml) (push to `main`) |
+| Manual deploy | [`.github/workflows/manual-deploy.yml`](.github/workflows/manual-deploy.yml) (prod, or redeploy a chosen tag) |
 
 App resources deploy to the **`petclinic`** namespace (not `default`). That namespace must match the Workload Identity binding in the infra repo (`petclinic/petclinic` → GCP app SA).
 
-### CI runners (ARC + Kaniko)
+### CI runners (ARC + BuildKit)
 
 App workflows run on **Actions Runner Controller** scale sets in the env GKE cluster (`petclinic-arc-dev` / `petclinic-arc-prod`), not on long-lived GCE VMs.
 
 | Workflow | `runs-on` | Registry |
 |----------|-----------|----------|
-| PR gatekeeper | `petclinic-arc-dev` | **dev** Artifact Registry only |
-| Main release | `petclinic-arc-prod` | **prod** Artifact Registry only |
+| PR gatekeeper | `petclinic-arc-dev` | **dev** Artifact Registry only (no deploy) |
+| Deploy to dev | `petclinic-arc-dev` | **dev** registry, then Helm to the shared `petclinic` namespace |
+| Main release | `petclinic-arc-prod` | **prod** Artifact Registry only (no deploy) |
 | Manual deploy | `petclinic-arc-${{ environment }}` | reads the matching env registry |
 
-**Trust model:** runner pods use GKE Workload Identity (`arc-runners` K8s SA → `github-app-runner-sa-{env}`). There is no GitHub→GCP OIDC in these workflows (`id-token: write` is intentionally absent). Images are built with **Kaniko** (no Docker socket / DinD); Trivy scans the image tar before `crane` push.
+**Trust model:** runner pods use GKE Workload Identity (`arc-runners` K8s SA → `github-app-runner-sa-{env}`). There is no GitHub→GCP OIDC in these workflows (`id-token: write` is intentionally absent). Images are built with **rootless BuildKit** (no Docker socket / DinD); Trivy scans the image tar before `crane` push.
 
 ### GitHub Actions variables
 
@@ -38,7 +40,9 @@ Project identifiers are **not** secrets. Dev and prod are different GCP projects
 | `GCP_PROJECT_ID` | Dev GCP project ID | Prod GCP project ID |
 | `GCP_REGION` | `europe-west1` | `europe-west1` |
 
-PR Gatekeeper uses Environment `dev`. Main release uses `prod`. Manual deploy uses the Environment you select. Workflows fail fast if either variable is empty on that Environment. Keep authenticators (tokens, PEMs, passwords) as secrets — not these IDs.
+PR Gatekeeper and Deploy to dev use Environment `dev`. Main release uses `prod`. Manual deploy uses the Environment you select. Workflows fail fast if either variable is empty on that Environment. Keep authenticators (tokens, PEMs, passwords) as secrets — not these IDs.
+
+A merge to `main` is what updates the shared dev cluster (build, scan, push, Helm). Pull requests only prove the change. Production stays a manual promote of a SemVer tag.
 
 Committed `values-dev.yaml` / `values-prod.yaml` hold only env-specific non-project settings (replicas, ingress host, `environment` label, K8s SA **name**). Project-bound Helm fields are injected at deploy time from the variables above (deterministic names matching the infra modules):
 
@@ -130,7 +134,7 @@ This fork ships a root [`Dockerfile`](Dockerfile) used by the CI pipelines (JAR 
 docker build -t petclinic:local .
 ```
 
-CI on ARC uses Kaniko instead of `docker build` (same Dockerfile).
+CI on ARC uses rootless BuildKit instead of `docker build` (same Dockerfile).
 
 You can also build a container image with the Spring Boot build plugin (if you have a docker daemon):
 

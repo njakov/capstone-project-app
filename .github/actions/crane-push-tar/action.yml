@@ -1,11 +1,11 @@
 name: Crane push tar
-description: Push a Kaniko-built image tarball to one or more registry tags with crane.
+description: Push a BuildKit image tarball to one or more registry tags with crane.
 
 inputs:
   tar-path:
     description: Path to the image tarball
     required: false
-    default: "/tmp/kaniko-image.tar"
+    default: "/tmp/image.tar"
   destinations:
     description: Newline-separated image:tag destinations
     required: true
@@ -18,7 +18,7 @@ runs:
       run: |
         set -euo pipefail
         if ! command -v crane >/dev/null 2>&1; then
-          echo "crane not found on PATH; run kaniko-build first or install crane" >&2
+          echo "crane not found on PATH; run buildkit-build first or install crane" >&2
           exit 1
         fi
 
