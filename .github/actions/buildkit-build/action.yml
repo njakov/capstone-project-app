@@ -67,14 +67,17 @@ runs:
 
         rm -rf /buildkit-work/context /buildkit-work/image.tar /buildkit-work/build.log /buildkit-work/requests
         mkdir -p /buildkit-work/requests /buildkit-work/context
-        # The sidecar is UID 1000. It must unlink the request and write the log, tar, and exit file.
+        # Official rootless sidecar is UID 1000 (job.rootless.yaml).
+        # It must unlink the request and write the log, tar, and exit file.
         chmod 777 /buildkit-work /buildkit-work/requests
         : > /buildkit-work/build.log
         chmod 666 /buildkit-work/build.log
         cp -a "${CONTEXT_DIR}/." /buildkit-work/context/
 
-        # Same mount path in the runner and the sidecar. Do not copy DOCKER_CONFIG:
-        # the base image is public, and crane push uses the runner's registry auth.
+        # Same mount path in the runner and the sidecar. The sidecar runs
+        # official buildctl-daemonless.sh and writes type=docker tar.
+        # Do not copy DOCKER_CONFIG: the base image is public, and crane
+        # push uses the runner's Workload Identity token after Trivy.
         if [[ "${{ inputs.dockerfile }}" = /* ]]; then
           cp "${DOCKERFILE_SRC}" /buildkit-work/context/Dockerfile.sidecar
           DOCKERFILE_IN_SIDECAR="/buildkit-work/context/Dockerfile.sidecar"

@@ -38,7 +38,8 @@ ingress:
   className: "nginx"
   host: "localhost"
 
-# Aligns with Dockerfile USER petclinic (non-root system user)
+# Aligns with Dockerfile USER 10001. runAsNonRoot requires a numeric uid;
+# a username such as "petclinic" makes kubelet reject the container.
 podSecurityContext:
   runAsNonRoot: true
   seccompProfile:
@@ -46,6 +47,8 @@ podSecurityContext:
 
 securityContext:
   runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
   allowPrivilegeEscalation: false
   capabilities:
     drop:

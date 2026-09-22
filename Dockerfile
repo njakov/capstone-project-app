@@ -9,7 +9,8 @@ WORKDIR /opt/spring-petclinic
 # ---------------------------------------------------------------------------
 # Security: Create a non-root user
 # ---------------------------------------------------------------------------
-RUN groupadd -r petclinic && useradd -r -g petclinic petclinic
+RUN groupadd --gid 10001 petclinic \
+ && useradd --uid 10001 --gid 10001 --no-create-home --shell /usr/sbin/nologin petclinic
 
 # ---------------------------------------------------------------------------
 # Installation
@@ -24,7 +25,7 @@ RUN chown -R petclinic:petclinic /opt/spring-petclinic
 # ---------------------------------------------------------------------------
 # Execution
 # ---------------------------------------------------------------------------
-USER petclinic
+USER 10001
 
 # Expose App (8080) and Metrics (9093)
 EXPOSE 8080 9093
