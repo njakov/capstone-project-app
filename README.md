@@ -51,7 +51,7 @@ Committed `values-dev.yaml` / `values-prod.yaml` hold only env-specific non-proj
 - `serviceAccount.gcpEmail` → `petclinic-sa-{env}@$GCP_PROJECT_ID.iam.gserviceaccount.com`
 - `cloudSql.instanceConnectionName` → `$GCP_PROJECT_ID:$GCP_REGION:petclinic-db-{env}`
 
-`manual-deploy.yml` passes those via `--set`. Chart defaults leave them empty so a render without `--set` fails closed.
+`deploy-dev.yml` and `manual-deploy.yml` pass those via `--set`. Chart defaults leave those four fields empty.
 
 ```bash
 # Example (credentials and cluster already configured)
@@ -103,8 +103,8 @@ Java 17 or later is required for the build, and the application can run with Jav
 You first need to clone the project locally:
 
 ```bash
-git clone https://github.com/spring-projects/spring-petclinic.git
-cd spring-petclinic
+git clone https://github.com/njakov/capstone-project-app.git
+cd capstone-project-app
 ```
 If you are using Maven, you can start the application on the command-line as follows:
 
@@ -216,7 +216,7 @@ The following items should be installed in your system:
 1. On the command line run:
 
     ```bash
-    git clone https://github.com/spring-projects/spring-petclinic.git
+    git clone https://github.com/njakov/capstone-project-app.git
     ```
 
 1. Inside Eclipse or STS:
