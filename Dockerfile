@@ -1,18 +1,16 @@
 # ---------------------------------------------------------------------------
-# Base Image: OpenJDK 25 EA (Slim)
+# Base Image: Eclipse Temurin 17 JRE (matches pom.xml java.version)
+# Index digest of eclipse-temurin:17-jre-jammy, resolved 2026-09-22 (17.0.20_8).
 # ---------------------------------------------------------------------------
-FROM openjdk:25-ea-21-jdk-slim
-
-RUN apt-get update && \
-    apt-get upgrade -y && \
-    rm -rf /var/lib/apt/lists/*
+FROM eclipse-temurin:17-jre-jammy@sha256:e85989f3e4d136b3d7dde921e157fddb9c7016805a225c1ec483326b825b3ca5
 
 WORKDIR /opt/spring-petclinic
 
 # ---------------------------------------------------------------------------
 # Security: Create a non-root user
 # ---------------------------------------------------------------------------
-RUN groupadd -r petclinic && useradd -r -g petclinic petclinic
+RUN groupadd --gid 10001 petclinic \
+ && useradd --uid 10001 --gid 10001 --no-create-home --shell /usr/sbin/nologin petclinic
 
 # ---------------------------------------------------------------------------
 # Installation
@@ -27,7 +25,7 @@ RUN chown -R petclinic:petclinic /opt/spring-petclinic
 # ---------------------------------------------------------------------------
 # Execution
 # ---------------------------------------------------------------------------
-USER petclinic
+USER 10001
 
 # Expose App (8080) and Metrics (9093)
 EXPOSE 8080 9093

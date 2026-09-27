@@ -1,0 +1,19 @@
+# Build and dependency output
+**/target/
+**/build/
+**/out/
+**/dist/
+**/.gradle/
+
+# Credentials and local environment files
+**/.env
+**/.env.*
+**/*.pem
+**/*.key
+**/service-account*.json
+**/credentials*.json
+
+# Editor and operating-system files
+**/.DS_Store
+**/.idea/
+**/.vscode/

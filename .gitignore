@@ -48,3 +48,12 @@ _site/
 !petclinic.css
 
 .yamllint
+
+### Local secrets and credentials ###
+.env
+.env.*
+*.pem
+*.key
+service-account*.json
+credentials*.json
+.DS_Store

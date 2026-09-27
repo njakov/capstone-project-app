@@ -18,7 +18,7 @@ package org.springframework.samples.petclinic.model;
 import jakarta.persistence.Column;
 import jakarta.persistence.MappedSuperclass;
 import jakarta.validation.constraints.NotBlank;
-import org.jspecify.annotations.Nullable;
+import jakarta.validation.constraints.Size;
 
 /**
  * Simple JavaBean domain object representing an person.
@@ -28,27 +28,29 @@ import org.jspecify.annotations.Nullable;
 @MappedSuperclass
 public class Person extends BaseEntity {
 
-	@Column(name = "first_name")
+	@Column(length = 30)
+	@Size(max = 30)
 	@NotBlank
-	private @Nullable String firstName;
+	private String firstName;
 
-	@Column(name = "last_name")
+	@Column(length = 30)
+	@Size(max = 30)
 	@NotBlank
-	private @Nullable String lastName;
+	private String lastName;
 
-	public @Nullable String getFirstName() {
+	public String getFirstName() {
 		return this.firstName;
 	}
 
-	public void setFirstName(@Nullable String firstName) {
+	public void setFirstName(String firstName) {
 		this.firstName = firstName;
 	}
 
-	public @Nullable String getLastName() {
+	public String getLastName() {
 		return this.lastName;
 	}
 
-	public void setLastName(@Nullable String lastName) {
+	public void setLastName(String lastName) {
 		this.lastName = lastName;
 	}
 

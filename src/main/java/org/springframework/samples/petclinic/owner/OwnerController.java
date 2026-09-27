@@ -35,7 +35,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.ModelAndView;
 
 import jakarta.validation.Valid;
-import org.jspecify.annotations.Nullable;
 
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
@@ -59,11 +58,11 @@ class OwnerController {
 
 	@InitBinder
 	public void setAllowedFields(WebDataBinder dataBinder) {
-		dataBinder.setDisallowedFields("id");
+		dataBinder.setDisallowedFields("id", "*.id");
 	}
 
 	@ModelAttribute("owner")
-	public Owner findOwner(@PathVariable(name = "ownerId", required = false) @Nullable Integer ownerId) {
+	public Owner findOwner(@PathVariable(name = "ownerId", required = false) Integer ownerId) {
 		return ownerId == null ? new Owner()
 				: this.owners.findById(ownerId)
 					.orElseThrow(() -> new IllegalArgumentException("Owner not found with id: " + ownerId
@@ -99,6 +98,9 @@ class OwnerController {
 		String lastName = owner.getLastName();
 		if (lastName == null) {
 			lastName = ""; // empty string signifies broadest possible search
+		}
+		else {
+			lastName = lastName.strip();
 		}
 
 		// find owners by last name

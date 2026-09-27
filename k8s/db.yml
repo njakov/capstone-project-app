@@ -1,3 +1,6 @@
+# LOCAL DEMO ONLY — do not apply to GKE / capstone clusters.
+# Production secrets come from Secret Manager via the Helm SecretProviderClass.
+# Plaintext credentials below are intentional sample values for local kind/minikube experiments.
 ---
 apiVersion: v1
 kind: Secret
@@ -41,7 +44,7 @@ spec:
         app: demo-db
     spec:
       containers:
-        - image: postgres:18.0
+        - image: postgres:18.4
           name: postgresql
           env:
             - name: POSTGRES_USER

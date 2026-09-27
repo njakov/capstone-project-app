@@ -1,9 +1,14 @@
+{{- if .Values.monitoring.dashboard.enabled }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ .Chart.Name }}-dashboard
+  name: {{ include "petclinic.fullname" . }}-dashboard
   labels:
+    # Grafana sidecar (kube-prometheus-stack) loads ConfigMaps with this label
+    # from any namespace when searchNamespace=ALL (set in infra middleware module).
     grafana_dashboard: "1"
+    {{- include "petclinic.labels" . | nindent 4 }}
 data:
   petclinic-dashboard.json: |
 {{ .Files.Get "dashboards/4701_rev10.json" | indent 4 }}
+{{- end }}
